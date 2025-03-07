@@ -10,7 +10,7 @@ export async function GET() {
           'MHg2ZDM2MzAzODAzYmRhZjQ5ZjY5YjQ2YmI2ZTU1ZTRlZmM4NzM5NTQ2YTA5YTYxZDY0YzZhNTAwYTkwMzM1NGNkNDFkNmI5YmJhNTgwZjQyZGQ3NDhhYWZjNDY3OWZiMjZmYmFhOWE5Yjc4MzE0MTg3M2M2OTQxMDJjNzI0NzAzMTFj',
       },
       frame: {
-        version: '0.1',
+        version: '1',
         name: 'adivinaDrone',
         // icono en frame
         iconUrl: `${appUrl}/favicon.png`,
@@ -21,7 +21,7 @@ export async function GET() {
         // imagen en splash
         splashImageUrl: `${appUrl}/splash.png`,
         splashBackgroundColor: '#2d283a',
-        webhookUrl: `https://api.neynar.com/f/app/d10b038c-f875-4dfe-9094-3569216fd4d3/event`,
+        webhookUrl: `https://api.neynar.com/f/app/da4edccf-fe2a-451d-b7d2-aacef4f759c4/event`,
       },
     };
   

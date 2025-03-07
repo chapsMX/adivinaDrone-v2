@@ -1,12 +1,16 @@
 "use client";
-import {useEffect, useState, useCallback, useMemo} from "react";
-//import { signIn, signOut,} from "next-auth/react";
-import sdk, {AddFrame, FrameNotificationDetails, SignIn as SignInCore, type Context} from "@farcaster/frame-sdk";
-// wagmi para transacciones
-// import { useAccount, useSendTransaction, useSignMessage, useSignTypedData, useWaitForTransactionReceipt,useDisconnect,useConnect,useSwitchChain, useChainId } from "wagmi";import { useSession } from "next-auth/react";
-import { createStore } from "mipd";
+import { useEffect, useState } from "react";
+import { type Context} from "@farcaster/frame-sdk";
 import { protoMono } from '@/styles/fonts';
 import Image from 'next/image';
+import sdk from "@farcaster/frame-sdk";
+
+// dependencias eliminadas, considerar al momento de agregar transacciones
+//import { signIn, signOut,} from "next-auth/react";
+//import sdk, {AddFrame, FrameNotificationDetails, SignIn as SignInCore, type Context} from "@farcaster/frame-sdk";
+// wagmi para transacciones
+// import { useAccount, useSendTransaction, useSignMessage, useSignTypedData, useWaitForTransactionReceipt,useDisconnect,useConnect,useSwitchChain, useChainId } from "wagmi";import { useSession } from "next-auth/react";
+//import { createStore } from "mipd";
 
 export default function AdivinaDrone() {
     const [isSDKLoaded, setIsSDKLoaded] = useState(false);
@@ -50,6 +54,7 @@ export default function AdivinaDrone() {
                   width={32}
                   height={32}
                   className="rounded-full border-2 border-white"
+                  unoptimized
                 />
                 <span className="text-left">{context.user.username}</span>
               </div>
@@ -80,7 +85,8 @@ export default function AdivinaDrone() {
               <div className="flex gap-4 w-full">
                 <button
                   onClick={() => {
-                    const castUrl = `https://warpcast.com/~/compose?text=🎯 adivinaDrone: The ultimate photo challenge! %0A%0AOne image a day, four options, and a juicy $DEGEN prize. Can you pinpoint the location? %0A%0AJoin the game at https://warpcast.com/~/channel/adivinadrone`;
+                    const frameUrl = process.env.NEXT_PUBLIC_SITE_URL;
+                    const castUrl = `https://warpcast.com/~/compose?text=🎯 adivinaDrone: The ultimate photo challenge! %0A%0AOne image a day, four options, and a juicy $DEGEN prize. Can you pinpoint the location? %0A%0AJoin the game at ${frameUrl}`;
                     window.open(castUrl, '_blank');
                   }}
                   className="flex-1 bg-transparent border-2 border-[#ff8800] text-[#ff8800] hover:bg-[#ff8800] hover:text-white font-bold py-2 px-4 rounded-full transition-colors flex items-center justify-center gap-2 text-sm"

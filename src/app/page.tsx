@@ -4,13 +4,13 @@ import App from './app';
 const appUrl = process.env.NEXT_PUBLIC_URL;
 
 const frame = {
-  version: '0.1',
+  version: 'next',
   imageUrl: `${appUrl}/castLoader.png`,
   button: {
     title: 'Start adivinaDrone',
     action: {
       type: 'launch_frame',
-      name: 'adivinaDrone',
+      name: 'AdivinaDrone',
       url: appUrl,
       splashImageUrl: `${appUrl}/splash.png`,
       splashBackgroundColor: '#2d283a',

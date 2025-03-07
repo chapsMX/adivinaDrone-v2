@@ -1,11 +1,12 @@
 "use client";
 import {useEffect, useState, useCallback, useMemo} from "react";
-import { signIn, signOut,} from "next-auth/react";
+//import { signIn, signOut,} from "next-auth/react";
 import sdk, {AddFrame, FrameNotificationDetails, SignIn as SignInCore, type Context} from "@farcaster/frame-sdk";
 // wagmi para transacciones
-import { useAccount, useSendTransaction, useSignMessage, useSignTypedData, useWaitForTransactionReceipt,useDisconnect,useConnect,useSwitchChain, useChainId } from "wagmi";import { useSession } from "next-auth/react";
+// import { useAccount, useSendTransaction, useSignMessage, useSignTypedData, useWaitForTransactionReceipt,useDisconnect,useConnect,useSwitchChain, useChainId } from "wagmi";import { useSession } from "next-auth/react";
 import { createStore } from "mipd";
 import { protoMono } from '@/styles/fonts';
+import Image from 'next/image';
 
 export default function AdivinaDrone() {
     const [isSDKLoaded, setIsSDKLoaded] = useState(false);
@@ -32,19 +33,23 @@ export default function AdivinaDrone() {
         se agregará el botón de conectar farcaster */}
         <header className={`w-full p-4 flex justify-between items-center ${protoMono.className}`}>
           <div className="flex items-center">
-            <img
+            <Image
               src="/favicon.png"
               alt="AdivinaDrone Logo"
-              className="w-16 h-16"
+              width={64}
+              height={64}
+              priority
             />
           </div>
-          {context?.user && (
+          {context?.user && context.user.pfpUrl && (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 px-3 py-1 bg-[#ff8800] rounded-full text-white min-w-[150px]">
-                <img
+                <Image
                   src={context.user.pfpUrl}
                   alt="Profile"
-                  className="w-8 h-8 rounded-full border-2 border-white"
+                  width={32}
+                  height={32}
+                  className="rounded-full border-2 border-white"
                 />
                 <span className="text-left">{context.user.username}</span>
               </div>

@@ -1,0 +1,17 @@
+{
+  "app": {
+    "[project]/src/app/page": [
+      "static/media/ProtoMono_Light-s.p.1e24a982.otf",
+      "static/media/ProtoMono_Bold-s.p.f8077c1f.otf",
+      "static/media/ProtoMono_Regular-s.p.c7cc048e.otf"
+    ],
+    "[project]/src/app/_not-found/page": [
+      "static/media/ProtoMono_Light-s.p.1e24a982.otf",
+      "static/media/ProtoMono_Bold-s.p.f8077c1f.otf",
+      "static/media/ProtoMono_Regular-s.p.c7cc048e.otf"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

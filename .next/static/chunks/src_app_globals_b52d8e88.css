@@ -26,6 +26,7 @@
     --tracking-widest: .1em;
     --leading-relaxed: 1.625;
     --radius-2xl: 1rem;
+    --animate-spin: spin 1s linear infinite;
     --animate-pulse: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
     --default-transition-duration: .15s;
     --default-transition-timing-function: cubic-bezier(.4, 0, .2, 1);
@@ -223,20 +224,8 @@
     margin-top: calc(var(--spacing) * 3);
   }
 
-  .mt-4 {
-    margin-top: calc(var(--spacing) * 4);
-  }
-
-  .mt-6 {
-    margin-top: calc(var(--spacing) * 6);
-  }
-
   .mb-4 {
     margin-bottom: calc(var(--spacing) * 4);
-  }
-
-  .mb-8 {
-    margin-bottom: calc(var(--spacing) * 8);
   }
 
   .flex {
@@ -251,36 +240,12 @@
     height: calc(var(--spacing) * 5);
   }
 
-  .h-8 {
-    height: calc(var(--spacing) * 8);
-  }
-
-  .h-12 {
-    height: calc(var(--spacing) * 12);
-  }
-
-  .h-16 {
-    height: calc(var(--spacing) * 16);
-  }
-
   .min-h-screen {
     min-height: 100vh;
   }
 
   .w-5 {
     width: calc(var(--spacing) * 5);
-  }
-
-  .w-8 {
-    width: calc(var(--spacing) * 8);
-  }
-
-  .w-12 {
-    width: calc(var(--spacing) * 12);
-  }
-
-  .w-16 {
-    width: calc(var(--spacing) * 16);
   }
 
   .w-full {
@@ -295,21 +260,12 @@
     min-width: 150px;
   }
 
-  .min-w-\[200px\] {
-    min-width: 200px;
-  }
-
   .flex-1 {
     flex: 1;
   }
 
-  .translate-x-0 {
-    --tw-translate-x: calc(var(--spacing) * 0);
-    translate: var(--tw-translate-x) var(--tw-translate-y);
-  }
-
-  .translate-x-\[-50\%\] {
-    --tw-translate-x: -50%;
+  .-translate-x-8 {
+    --tw-translate-x: calc(var(--spacing) * -8);
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
 
@@ -319,6 +275,10 @@
 
   .animate-pulse {
     animation: var(--animate-pulse);
+  }
+
+  .animate-spin {
+    animation: var(--animate-spin);
   }
 
   .flex-col {
@@ -424,10 +384,6 @@
     padding: calc(var(--spacing) * 8);
   }
 
-  .px-2 {
-    padding-inline: calc(var(--spacing) * 2);
-  }
-
   .px-3 {
     padding-inline: calc(var(--spacing) * 3);
   }
@@ -436,20 +392,12 @@
     padding-inline: calc(var(--spacing) * 4);
   }
 
-  .px-6 {
-    padding-inline: calc(var(--spacing) * 6);
-  }
-
   .py-1 {
     padding-block: calc(var(--spacing) * 1);
   }
 
   .py-2 {
     padding-block: calc(var(--spacing) * 2);
-  }
-
-  .py-3 {
-    padding-block: calc(var(--spacing) * 3);
   }
 
   .text-center {
@@ -531,6 +479,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  .opacity-25 {
+    opacity: .25;
+  }
+
+  .opacity-75 {
+    opacity: .75;
+  }
+
   .opacity-90 {
     opacity: .9;
   }
@@ -548,15 +504,17 @@
   }
 
   @media (hover: hover) {
-    .hover\:bg-\[\#ff9900\]:hover {
-      background-color: #f90;
-    }
-  }
-
-  @media (hover: hover) {
     .hover\:text-white:hover {
       color: var(--color-white);
     }
+  }
+
+  .disabled\:cursor-not-allowed:disabled {
+    cursor: not-allowed;
+  }
+
+  .disabled\:opacity-50:disabled {
+    opacity: .5;
   }
 }
 
@@ -579,33 +537,31 @@ body {
 }
 
 @keyframes scroll-left {
-  from {
-    transform: translateX(0);
+  0% {
+    transform: translateX(-100%);
   }
 
-  to {
-    transform: translateX(-100%);
+  100% {
+    transform: translateX(0%);
   }
 }
 
 @keyframes scroll-right {
-  from {
-    transform: translateX(-100%);
+  0% {
+    transform: translateX(0%);
   }
 
-  to {
-    transform: translateX(0);
+  100% {
+    transform: translateX(-100%);
   }
 }
 
 .animate-scroll-left {
   animation: 30s linear infinite scroll-left;
-  animation-fill-mode: forwards;
 }
 
 .animate-scroll-right {
   animation: 30s linear infinite scroll-right;
-  animation-fill-mode: forwards;
 }
 
 @property --tw-translate-x {
@@ -681,6 +637,12 @@ body {
 @property --tw-tracking {
   syntax: "*";
   inherits: false
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {

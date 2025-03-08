@@ -71,13 +71,13 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$app$2f$app$2e$tsx__$5
 ;
 const appUrl = process.env.NEXT_PUBLIC_URL;
 const frame = {
-    version: '0.1',
+    version: 'next',
     imageUrl: `${appUrl}/castLoader.png`,
     button: {
         title: 'Start adivinaDrone',
         action: {
             type: 'launch_frame',
-            name: 'adivinaDrone',
+            name: 'AdivinaDrone',
             url: appUrl,
             splashImageUrl: `${appUrl}/splash.png`,
             splashBackgroundColor: '#2d283a'

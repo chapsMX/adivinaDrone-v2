@@ -30,18 +30,16 @@ body {
 @tailwind utilities;
 
 @keyframes scroll-left {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0%); }
 }
 @keyframes scroll-right {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-100%); }
 }
 .animate-scroll-left {
   animation: scroll-left 30s linear infinite;
-  animation-fill-mode: forwards;
 }
 .animate-scroll-right {
   animation: scroll-right 30s linear infinite;
-  animation-fill-mode: forwards;
 }

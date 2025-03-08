@@ -2,13 +2,11 @@ export async function GET() {
     const appUrl = process.env.NEXT_PUBLIC_URL;
   
     const config = {
-      accountAssociation: {
-        header:
-          'eyJmaWQiOjE1OTgzLCJ0eXBlIjoiY3VzdG9keSIsImtleSI6IjB4NEFlNDlGMGFBNzYyRWZlYmVCZmY0YmFDNGVBMDg0N0ViNkFmNGVjOSJ9',
-        payload: 'eyJkb21haW4iOiJhcHAuZGVnZW4udGlwcyJ9',
-        signature:
-          'MHg2ZDM2MzAzODAzYmRhZjQ5ZjY5YjQ2YmI2ZTU1ZTRlZmM4NzM5NTQ2YTA5YTYxZDY0YzZhNTAwYTkwMzM1NGNkNDFkNmI5YmJhNTgwZjQyZGQ3NDhhYWZjNDY3OWZiMjZmYmFhOWE5Yjc4MzE0MTg3M2M2OTQxMDJjNzI0NzAzMTFj',
-      },
+      accountAssociation:  {
+        "header": "eyJmaWQiOjIwNzAxLCJ0eXBlIjoiY3VzdG9keSIsImtleSI6IjB4ZDQwNDg2MjIwNDMzOWJCNDJDNWMzNTVjMzcxMWViYzE2MTM1ZjllZSJ9",
+        "payload": "eyJkb21haW4iOiJhZGl2aW5hZHJvbmUuYzEzc3R1ZGlvLm14In0",
+        "signature": "MHgxYzMzMjc2OTdlZGJkOGY3YmU2Mzk1M2ExNDljZTg4ZGU2ODczMTdiNzgyNjk1MDdhN2VlNWRhN2JkYzI1YTg5NmUzMmU4OWUwYmI0M2M3ZTUwYzNmYTM1NWEyNTUxYTZlZWFiNmI1MWZmMGZlMzcyNWExMGNmYTI3ZjViMTgxNDFi"
+      },    
       frame: {
         version: '1',
         name: 'adivinaDrone',

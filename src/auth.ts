@@ -1,13 +1,18 @@
-import { AuthOptions, getServerSession } from "next-auth"
+import { AuthOptions, getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { createAppClient, viemConnector } from "@farcaster/auth-client";
 
 declare module "next-auth" {
-  interface Session {
-    user: {
-      fid: number;
-    };
-  }
+    interface Session {
+        user: {
+            fid: number;
+            username: string;
+            displayName: string;
+            profilePicture: string;
+            accessToken: string;
+            refreshToken: string;
+        }
+    }
 }
 
 export const authOptions: AuthOptions = {

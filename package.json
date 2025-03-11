@@ -10,13 +10,19 @@
   },
   "dependencies": {
     "@farcaster/auth-client": "^0.3.0",
+    "@farcaster/auth-kit": "^0.6.0",
+    "@farcaster/frame-core": "^0.0.29",
+    "@farcaster/frame-node": "^0.0.18",
     "@farcaster/frame-sdk": "^0.0.31",
-    "@tanstack/react-query": "^5.67.1",
+    "@tanstack/react-query": "^5.67.2",
+    "@upstash/redis": "^1.34.5",
+    "@vercel/analytics": "^1.5.0",
     "next": "15.2.1",
     "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "viem": "^2.23.6",
+    "tailwind-merge": "^3.0.2",
+    "viem": "^2.23.8",
     "wagmi": "^2.14.12"
   },
   "devDependencies": {

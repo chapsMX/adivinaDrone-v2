@@ -7,12 +7,12 @@ const frame = {
   version: 'next',
   imageUrl: `${appUrl}/castLoader.png`,
   button: {
-    title: 'Start adivinaDrone',
+    title: 'Play adivinaDrone',
     action: {
       type: 'launch_frame',
-      name: 'AdivinaDrone',
+      name: 'adivinaDrone',
       url: appUrl,
-      splashImageUrl: `${appUrl}/splash.png`,
+      splashImageUrl: `${appUrl}/favicon.png`,
       splashBackgroundColor: '#2d283a',
     },
   },

@@ -1,21 +1,15 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
-// import { input } from"../compoonents/ui/input";
-// import { signIn, signOut, getCsrfToken } from "next-auth/react";
 import sdk, {
 AddFrame,
-FrameNotificationDetails,
-// SignIn as SignInCore,
 type Context,
 } from "@farcaster/frame-sdk";
 
-import { Button } from "../styles/ui/Button";
-// import { useSession } from "next-auth/react";
-import { createStore} from "mipd";
+import { Button } from "../styles/ui/Button";// import { useSession } from "next-auth/react";
 import { protoMono } from '@/styles/fonts';
 import Image from 'next/image';
-import { InstagramIcon, TikTokIcon } from '@/styles/svg';
+import { InstagramIcon, TikTokIcon, AddFrameIcon } from '@/styles/svg/index';
 import '@/styles/footer.css';
 
 export default function AdivinaDrone(
@@ -23,10 +17,7 @@ export default function AdivinaDrone(
 ) {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [context, setContext] = useState<Context.FrameContext>();
-  //const [isContextOpen, setIsContextOpen] = useState(false);
   const [added, setAdded] = useState(false);
-  const [notificationDetails, setNotificationDetails] =
-    useState<FrameNotificationDetails | null>(null);
   const [addFrameResult, setAddFrameResult] = useState("");
 
   // contexto del frame
@@ -36,27 +27,12 @@ export default function AdivinaDrone(
       setContext(context);
       setAdded(context.client.added);
 
-      sdk.on("frameAdded", ({ notificationDetails }) => {
-        setAdded(true);
-        if (notificationDetails) {
-          setNotificationDetails(notificationDetails);
-        }
-      });
-
       sdk.on("frameAddRejected", ({ reason }) => {
         console.log(`Frame add rejected: ${reason}`);
       });
 
       sdk.on("frameRemoved", () => {
         setAdded(false);
-        setNotificationDetails(null);
-      });
-
-      sdk.on("notificationsEnabled", ({ notificationDetails }) => {
-        setNotificationDetails(notificationDetails);
-      });
-      sdk.on("notificationsDisabled", () => {
-        setNotificationDetails(null);
       });
 
       sdk.on("primaryButtonClicked", () => {
@@ -66,14 +42,6 @@ export default function AdivinaDrone(
       console.log("Calling ready");
       sdk.actions.ready({});
 
-      // Set up a MIPD Store, and request Providers.
-      const store = createStore();
-
-      // Subscribe to the MIPD Store.
-      store.subscribe((providerDetails) => {
-        console.log("PROVIDER DETAILS", providerDetails);
-        // => [EIP6963ProviderDetail, EIP6963ProviderDetail, ...]
-      });
     };
     if (sdk && !isSDKLoaded) {
       console.log("Calling load");
@@ -87,18 +55,15 @@ export default function AdivinaDrone(
 
   const addFrame = useCallback(async () => {
     try {
-      setNotificationDetails(null);
-
       const result = await sdk.actions.addFrame();
 
       if (result.notificationDetails) {
-        setNotificationDetails(result.notificationDetails);
+        setAddFrameResult(
+          result.notificationDetails
+            ? `Added, got notificaton token ${result.notificationDetails.token} and url ${result.notificationDetails.url}`
+            : "Added, got no notification details"
+        );
       }
-      setAddFrameResult(
-        result.notificationDetails
-          ? `Added, got notificaton token ${result.notificationDetails.token} and url ${result.notificationDetails.url}`
-          : "Added, got no notification details"
-      );
     } catch (error) {
       if (error instanceof AddFrame.RejectedByUser) {
         setAddFrameResult(`Not added: ${error.message}`);
@@ -111,38 +76,6 @@ export default function AdivinaDrone(
       setAddFrameResult(`Error: ${error}`);
     }
   }, []);
-/*   // envia notificacion
-  const sendNotification = useCallback(async () => {
-    setSendNotificationResult("");
-    if (!notificationDetails || !context) {
-      return;
-    }
-
-    try {
-      const response = await fetch("/api/send-notification", {
-        method: "POST",
-        mode: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fid: context.user.fid,
-          notificationDetails,
-        }),
-      });
-
-      if (response.status === 200) {
-        setSendNotificationResult("Success");
-        return;
-      } else if (response.status === 429) {
-        setSendNotificationResult("Rate limited");
-        return;
-      }
-
-      const data = await response.text();
-      setSendNotificationResult(`Error: ${data}`);
-    } catch (error) {
-      setSendNotificationResult(`Error: ${error}`);
-    }
-  }, [context, notificationDetails]); */
 
   // carga el componente
   if (!isSDKLoaded) {
@@ -183,13 +116,9 @@ export default function AdivinaDrone(
             <h1 className="text-2xl font-bold text-center mb-1">{title}</h1>
 
             <div>
-{/*           <div className="mb-4">
-            <SignIn />
-          </div> */}
         </div>
 
       </div>
-          {/* fin de signIn */}
           <div className="relative border-2 border-[#ff8800] bg-[#3d3849] rounded-2xl p-6 max-w-2xl w-full overflow-hidden">
             <div className="absolute inset-0 z-0">
               <Image
@@ -203,20 +132,21 @@ export default function AdivinaDrone(
             <div className={`relative z-10 text-center space-y-3 ${protoMono.className}`}>
               <div className="flex flex-col gap-1">
                 <h1 className="text-4xl font-bold">adivinaDrone</h1>
-                <h2 className="text-4xl font-semibold opacity-90">Season 07</h2>
+                
               </div>
               
               <p className="text-lg leading-relaxed mt-3">
-                Think you know the world? <br /> Take the ultimate guess in our photo challenge!
+              Think you know the world? <br /> Take the ultimate guess in our photo challenge!
               </p>
+              <h2 className="text-4xl font-semibold opacity-90">Season 07</h2>
               <h2 className="text-3xl font-semibold opacity-90">Coming Soon!</h2>
             </div>
           </div>
 
           <div className={`flex flex-col items-center gap-3 w-full max-w-2xl ${protoMono.className}`}>
             <div className="relative">
-              <p className="text-2xl font-white text-white tracking-[0.2em]">
-               Follow us:
+              <p className="text-sm text-center leading-relaxed mt-3">
+              Meanwhile, Follow @c13studio & add the frame to get notified for next season.
               </p>
             </div>
             
@@ -226,7 +156,6 @@ export default function AdivinaDrone(
                 className="flex-1"
               >
                 <InstagramIcon />
-                Instagram
               </Button>
 
               <Button
@@ -234,31 +163,24 @@ export default function AdivinaDrone(
                 className="flex-1"
               >
                 <TikTokIcon />
-                TikTok
+              </Button>
+
+              <Button 
+                onClick={addFrame} 
+                disabled={added} 
+                className="flex-1"
+              >
+                <AddFrameIcon />
               </Button>
             </div>
 
             <div className="w-full mt-1">
-            <Button onClick={addFrame} disabled={added} className="w-full">
-                  Add frame to client
-                </Button><br />
-              {/* <h2 className="font-2xl font-bold text-left">Add to client & notifications</h2> */}
-
-            <div className="mt-2 mb-4 text-xs text-left opacity-50">
-                Client fid {context?.client.clientFid},
-                {added ? " frame added to client," : " frame not added to client,"}
-                {notificationDetails
-                  ? " notifications enabled"
-                  : " notifications disabled"}
-              </div>
-
               <div className="mb-4">
                 {addFrameResult && (
                   <div className="mb-2 text-xs text-left opacity-50">
                     Add frame result: {addFrameResult}
                   </div>
                 )}
-
               </div>
             </div>
           </div>
@@ -292,90 +214,3 @@ export default function AdivinaDrone(
     </div>
   );
 }
-
-// sign in farcaster
-/* function SignIn() {
-  const [signingIn, setSigningIn] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-  const [signInResult, setSignInResult] = useState<SignInCore.SignInResult>();
-  const [signInFailure, setSignInFailure] = useState<string>();
-  const { data: session, status } = useSession();
-
-  const getNonce = useCallback(async () => {
-    const nonce = await getCsrfToken();
-    if (!nonce) throw new Error("Unable to generate nonce");
-    return nonce;
-  }, []);
-
-  const handleSignIn = useCallback(async () => {
-    try {
-      setSigningIn(true);
-      setSignInFailure(undefined);
-      const nonce = await getNonce();
-      const result = await sdk.actions.signIn({ nonce });
-      setSignInResult(result);
-
-      await signIn("credentials", {
-        message: result.message,
-        signature: result.signature,
-        redirect: false,
-      });
-    } catch (e) {
-      if (e instanceof SignInCore.RejectedByUser) {
-        setSignInFailure("Rejected by user");
-        return;
-      }
-
-      setSignInFailure("Unknown error");
-    } finally {
-      setSigningIn(false);
-    }
-  }, [getNonce]);
-
-  const handleSignOut = useCallback(async () => {
-    try {
-      setSigningOut(true);
-      await signOut({ redirect: false });
-      setSignInResult(undefined);
-    } finally {
-      setSigningOut(false);
-    }
-  }, []);
-
-  return (
-    <>
-      {status !== "authenticated" && (
-        <Button onClick={handleSignIn} disabled={signingIn}>
-          Sign In with Farcaster
-        </Button>
-      )}
-      {status === "authenticated" && (
-        <Button onClick={handleSignOut} disabled={signingOut}>
-          Sign out
-        </Button>
-      )}
-      {session && (
-        <div className="my-2 p-2 text-xs overflow-x-scroll bg-gray-100 rounded-lg font-mono">
-          <div className="font-semibold text-gray-500 mb-1">Session</div>
-          <div className="whitespace-pre">
-            {JSON.stringify(session, null, 2)}
-          </div>
-        </div>
-      )}
-      {signInFailure && !signingIn && (
-        <div className="my-2 p-2 text-xs overflow-x-scroll bg-gray-100 rounded-lg font-mono">
-          <div className="font-semibold text-gray-500 mb-1">SIWF Result</div>
-          <div className="whitespace-pre">{signInFailure}</div>
-        </div>
-      )}
-      {signInResult && !signingIn && (
-        <div className="my-2 p-2 text-xs overflow-x-scroll bg-gray-100 rounded-lg font-mono">
-          <div className="font-semibold text-gray-500 mb-1">SIWF Result</div>
-          <div className="whitespace-pre">
-            {JSON.stringify(signInResult, null, 2)}
-          </div>
-        </div>
-      )}
-    </>
-  );
-} */

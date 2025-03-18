@@ -17,7 +17,7 @@ export async function GET() {
         imageUrl: `${appUrl}/castLoader.png`,
         buttonTitle: 'Start adivinaDrone',
         // imagen en splash
-        splashImageUrl: `${appUrl}/splashC.png`,
+        splashImageUrl: `${appUrl}/splash_200.png`,
         splashBackgroundColor: '#2d283a',
         webhookUrl: `https://api.neynar.com/f/app/da4edccf-fe2a-451d-b7d2-aacef4f759c4/event`,
       },

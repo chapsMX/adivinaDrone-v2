@@ -12,7 +12,7 @@ const frame = {
       type: 'launch_frame',
       name: 'adivinaDrone',
       url: appUrl,
-      splashImageUrl: `${appUrl}/favicon.png`,
+      splashImageUrl: `${appUrl}/splashC.png`,
       splashBackgroundColor: '#2d283a',
     },
   },

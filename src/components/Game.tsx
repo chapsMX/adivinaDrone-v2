@@ -54,8 +54,7 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
     token: TOKEN_ADDRESS,
   });
 
-  const { writeContractAsync: approve } = useWriteContract();
-  const { writeContractAsync: transfer } = useWriteContract();
+ const { writeContractAsync: transfer } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: transactionHash as `0x${string}`,
@@ -264,7 +263,6 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
       }
     } catch (error) {
       console.error('Error detallado al comprar vida:', error);
-      alert('Error al comprar una vida extra. Por favor, intenta de nuevo.');
     } finally {
       setIsApproving(false);
     }
@@ -487,22 +485,6 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
           ))}
         </div>
       </div>
-
-      {/* Modal de confirmación */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-[#3d3849] p-6 rounded-xl border-2 border-[#ff8800] max-w-md w-full mx-4">
-            <h3 className="text-xl text-white mb-4">¡Transacción Exitosa!</h3>
-            <p className="text-white mb-6">¿Listo para usar tu vida extra?</p>
-            <button
-              className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
-              onClick={handlePlayExtraLife}
-            >
-              Jugar Ahora
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

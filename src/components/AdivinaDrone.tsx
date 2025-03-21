@@ -2,12 +2,12 @@
 
 import { useEffect, useCallback, useState } from "react";
 import sdk, {
-AddFrame,
-type Context,
+       AddFrame,
+       type Context,
 } from "@farcaster/frame-sdk";
-import { useAccount } from 'wagmi';
-
-import { Button } from "../styles/ui/Button";// import { useSession } from "next-auth/react";
+// import { useAccount } from 'wagmi';
+import  {signIn, getCsrfToken} from "next-auth/react";
+import { Button } from "../styles/ui/Button";
 import { protoMono } from '@/styles/fonts';
 import Image from 'next/image';
 import { InstagramIcon, TikTokIcon, AddFrameIcon } from '@/styles/svg/index';
@@ -23,8 +23,9 @@ export default function AdivinaDrone(
   const [addFrameResult, setAddFrameResult] = useState("");
   const [isGameActive, setIsGameActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const { address } = useAccount();
+  // const { address } = useAccount();
   const [walletAddress, setWalletAddress] = useState<string>('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   // contexto del frame
   useEffect(() => {
@@ -73,6 +74,32 @@ export default function AdivinaDrone(
     }
   }, [isSDKLoaded]);
 
+  // Inicio de sesión después de que el frame esté cargado
+  useEffect(() => {
+    const signInUser = async () => {
+      if (isSDKLoaded && !isSigningIn) {
+        setIsSigningIn(true);
+        try {
+          const nonce = await getCsrfToken();
+          if (nonce) {
+            const result = await sdk.actions.signIn({ nonce });
+            await signIn("credentials", {
+              message: result.message,
+              signature: result.signature,
+              redirect: false,
+            });
+          }
+        } catch (error) {
+          console.error('Error signing in:', error);
+        } finally {
+          setIsSigningIn(false);
+        }
+      }
+    };
+
+    signInUser();
+  }, [isSDKLoaded]);
+
   const addFrame = useCallback(async () => {
     try {
       const result = await sdk.actions.addFrame();
@@ -119,35 +146,35 @@ export default function AdivinaDrone(
   }
   return (
     <div className="min-h-screen bg-[#2d283a] text-white font-mono flex flex-col">
-      <header className={`w-full p-4 flex justify-between items-center ${protoMono.className}`}>
+      <header className={`w-full p-3 flex justify-between items-center ${protoMono.className}`}>
         <div className="flex items-center">
           <Image
             src="/favicon.png"
             alt="adivinaDrone Logo"
-            width={64}
-            height={64}
+            width={48}
+            height={48}
             priority
           />
         </div>
         {context?.user && context.user.pfpUrl && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1 bg-[#ff8800] rounded-full text-white min-w-[150px]">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-2 py-1 bg-[#ff8800] rounded-full text-white min-w-[80px]">
               <Image
                 src={context.user.pfpUrl}
                 alt="Profile"
-                width={32}
-                height={32}
+                width={24}
+                height={24}
                 className="rounded-full border-2 border-white"
                 unoptimized
               />
-              <span className="text-left">{context.user.username}</span>
+              <span className="text-left"> Menu</span>
             </div>
           </div>
         )}
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-2">
-        <div className="flex flex-col items-center gap-3">
+      <main className="min-w-screen flex-1 flex items-start justify-center p-0">
+        <div className="flex flex-col items-center gap-1">
           {isGameActive && context?.user ? (
             <Game 
               userId={context.user.fid.toString()} 
@@ -158,61 +185,55 @@ export default function AdivinaDrone(
             <>
               <div className="w-[300px] mx-auto">
                 <h1 className="text-2xl font-bold text-center mb-1">{title}</h1>
-
                 <div>
                 </div>
-
               </div>
+
+              <div className="flex flex-col items-center gap-2 mb-4">
+                <h1 className={`text-4xl font-bold ${protoMono.className}`}>adivinaDrone</h1>
+                
+              <h2 className={`text-3xl font-semibold opacity-90 ${protoMono.className}`}>Season 07</h2>
+              </div>
+              <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
+              <Button
+                  onClick={handleStartGame}
+                  disabled={isConnecting}
+                  className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {isConnecting ? 'Connecting...' : context?.user ? 'Starts April 1st' : 'Connect our wallet to start playing'}
+                </Button>
+              </div>
+              <hr></hr>
+              <hr></hr>
               <div className="relative border-2 border-[#ff8800] bg-[#3d3849] rounded-2xl p-6 max-w-2xl w-full overflow-hidden">
                 <div className="absolute inset-0 z-0">
                   <Image
                     src="/mapaTrans.png"
                     alt="Background Map"
                     fill
-                    style={{ objectFit: 'cover' }}
+                    style={{ objectFit: 'fill' }}
                     className="opacity-80"
                   />
                 </div>
                 <div className={`relative z-10 text-center space-y-3 ${protoMono.className}`}>
-                  <div className="flex flex-col gap-1">
-                    <p className="text-xl">Welcome to</p>
-                    <h1 className="text-4xl font-bold">adivinaDrone</h1>
-                    <h2 className="text-3xl font-semibold opacity-90">Season 0</h2>
+                  <div className="flex flex-col gap-3">
+                  <h2 className={`text-3xl font-semibold opacity-90 ${protoMono.className}`}>&nbsp;{context?.user?.username || 'adivinaDrone'}&nbsp;</h2> 
+                  <h2 className={`text-2xl font-semibold opacity-90 ${protoMono.className}`}>Ready to play?</h2>
                   </div>
-                  
                   <div className="mt-6">
                     <p className="text-lg leading-relaxed">
-                      Think you know the world?<br />
-                      Take the ultimate guess in your photo challenge.
+                      200 photos per season<br />
+                      3 daily random photos<br />
+                      Time based score<br />
+                      Fast answers = more points<br />
+                      $DRONE token rewards
                     </p>
                   </div>
                 </div>
               </div>
-
-              <div className={`flex flex-col items-center gap-3 w-full max-w-2xl ${protoMono.className}`}>
-                <Button
-                  onClick={handleStartGame}
-                  disabled={isConnecting}
-                  className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
-                >
-                  {isConnecting ? 'Conectando...' : context?.user ? 'Launch Season 0' : 'Conectar billetera para jugar'}
-                </Button>
-
-                {!context?.user && (
-                  <p className="text-sm text-yellow-500">
-                    Necesitas conectar tu billetera para jugar
-                  </p>
-                )}
-
-                {context?.user && (
-                  <div className="text-sm text-gray-300">
-                    <p>Billetera conectada:</p>
-                    <p className="font-mono break-all">
-                      {walletAddress || 'Conectando...'}
-                    </p>
-                  </div>
-                )}
-                
+              <hr></hr>
+              <hr></hr>
+               <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
                 <div className="flex gap-4 w-full">
                   <Button
                     onClick={() => window.open('https://www.instagram.com/c13studio/', '_blank')}
@@ -237,7 +258,7 @@ export default function AdivinaDrone(
                   </Button>
                 </div>
 
-                <div className="w-full mt-1">
+{/*                 <div className="w-full mt-1">
                   <div className="mb-4">
                     {addFrameResult && (
                       <div className="mb-2 text-xs text-left opacity-50">
@@ -245,8 +266,8 @@ export default function AdivinaDrone(
                       </div>
                     )}
                   </div>
-                </div>
-              </div>
+                </div> */}
+              </div> 
             </>
           )}
         </div>

@@ -13,6 +13,7 @@ import Image from 'next/image';
 import { InstagramIcon, TikTokIcon, AddFrameIcon } from '@/styles/svg/index';
 import '@/styles/footer.css';
 import Game from './Game';
+import Dashboard from './Dashboard';
 
 export default function AdivinaDrone(
   { title }: { title?: string } = { title: "adivinaDrone" }
@@ -23,6 +24,7 @@ export default function AdivinaDrone(
   const [addFrameResult, setAddFrameResult] = useState("");
   const [isGameActive, setIsGameActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   // const { address } = useAccount();
   const [walletAddress, setWalletAddress] = useState<string>('');
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -156,22 +158,36 @@ export default function AdivinaDrone(
             priority
           />
         </div>
-        {context?.user && context.user.pfpUrl && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-2 py-1 bg-[#ff8800] rounded-full text-white min-w-[80px]">
-              <Image
-                src={context.user.pfpUrl}
-                alt="Profile"
-                width={24}
-                height={24}
-                className="rounded-full border-2 border-white"
-                unoptimized
-              />
-              <span className="text-left"> Menu</span>
+        {context?.user && (
+          <button
+            type="button"
+            onClick={() => {
+              console.log('Click en el botón de menú');
+              setIsDashboardOpen(true);
+            }}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          >
+            <div className="flex flex-col gap-1.5">
+              <div className="w-5 h-0.5 bg-white"></div>
+              <div className="w-5 h-0.5 bg-white"></div>
+              <div className="w-5 h-0.5 bg-white"></div>
             </div>
-          </div>
+          </button>
         )}
       </header>
+
+      {isDashboardOpen && context?.user && (
+        <Dashboard
+          isOpen={isDashboardOpen}
+          onClose={() => {
+            console.log('Cerrando dashboard');
+            setIsDashboardOpen(false);
+          }}
+          userId={context.user.fid.toString()}
+          username={context.user.username || 'Anónimo'}
+          context={context}
+        />
+      )}
 
       <main className="min-w-screen flex-1 flex items-start justify-center p-0">
         <div className="flex flex-col items-center gap-1 w-[95%]">
@@ -179,6 +195,7 @@ export default function AdivinaDrone(
             <Game 
               userId={context.user.fid.toString()} 
               seasonId="0"
+              username={context.user.username || 'Anónimo'}
               onBack={() => setIsGameActive(false)}
             />
           ) : (

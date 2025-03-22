@@ -17,8 +17,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const seasonId = searchParams.get('seasonId');
+    const username = searchParams.get('username');
 
-    if (!userId || !seasonId) {
+    if (!userId || !seasonId || !username) {
       return NextResponse.json(
         { error: 'Missing required parameters' },
         { status: 400 }
@@ -45,9 +46,10 @@ export async function GET(request: Request) {
 
     // Verificar si el usuario existe y crearlo si no existe
     await sql`
-      INSERT INTO users (id, farcaster_id)
-      VALUES (${userId}, ${userId})
-      ON CONFLICT (id) DO NOTHING;
+      INSERT INTO users (id, farcaster_id, username)
+      VALUES (${userId}, ${userId}, ${username})
+      ON CONFLICT (farcaster_id) DO UPDATE 
+      SET username = COALESCE(EXCLUDED.username, users.username);
     `;
 
     // Verificar si hay imágenes en la temporada

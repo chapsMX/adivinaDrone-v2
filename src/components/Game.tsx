@@ -29,10 +29,11 @@ interface AnswerResult {
 interface GameProps {
   userId: string;
   seasonId: string;
+  username: string;
   onBack?: () => void;
 }
 
-export default function Game({ userId, seasonId, onBack }: GameProps) {
+export default function Game({ userId, seasonId, username, onBack }: GameProps) {
   const [images, setImages] = useState<GameImage[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [options, setOptions] = useState<string[]>([]);
@@ -84,7 +85,7 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
     try {
       setIsLoading(true);
       setIsPreloading(true);
-      const response = await fetch(`/api/game?userId=${userId}&seasonId=${seasonId}&extraLife=${hasExtraLife}`);
+      const response = await fetch(`/api/game?userId=${userId}&seasonId=${seasonId}&extraLife=${hasExtraLife}&username=${username}`);
       const data = await response.json();
       
       if (data.error) {

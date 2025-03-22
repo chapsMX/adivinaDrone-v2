@@ -47,6 +47,7 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
   const [transactionHash, setTransactionHash] = useState<string>();
   const [isApproving, setIsApproving] = useState(false);
   const [hasExtraLife, setHasExtraLife] = useState(false);
+  const [hasShared, setHasShared] = useState(false);
 
   const { address } = useAccount();
   const { data: tokenBalance } = useBalance({
@@ -164,6 +165,7 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
           imageId: currentImage.id,
           seasonId,
           answer,
+          timeLeft
         }),
       });
 
@@ -212,6 +214,7 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
             setGlobalScore(0);
           } else {
             const scoreData = await scoreResponse.json();
+            // El score global ya incluye los puntos de esta sesión
             setGlobalScore(scoreData.globalScore || 0);
           }
         } catch (error) {
@@ -228,11 +231,38 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
 
   const handleShare = async () => {
     const correctAnswers = answers.filter(a => a.isCorrect).length;
+    const normalAnswers = answers.slice(0, 3);
+    const normalScore = normalAnswers.reduce((score, answer) => {
+      return score + (answer.isCorrect ? (answer.timeLeft * 100) : 0);
+    }, 0);
+    
     try {
-      const text = `I played my daily round of /adivinadrone and got ${correctAnswers}/3 correct answers! Can you do it better? 🎯`;
+      const text = `I played my daily round of /adivinadrone and got ${correctAnswers}/3 correct answers! 🎯\nDaily Score: ${normalScore} points\nGlobal Score: ${globalScore} points\nCan you do it better? 🚀`;
       const url = "https://adivinadrone.c13studio.mx";
       
       await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
+
+      // Agregar puntos extra por compartir
+      try {
+        const response = await fetch("/api/game/share-bonus", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId,
+            seasonId
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setGlobalScore(prev => prev + 1000); // Actualizar el score global en UI
+          setHasShared(true); // Ocultar el botón después de compartir
+        }
+      } catch (error) {
+        console.error('Error adding share bonus:', error);
+      }
     } catch (error) {
       console.error('Error sharing:', error);
     }
@@ -331,7 +361,7 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
                   </div>
                   <div className="p-4 border-2 border-[#ff8800] rounded-xl bg-black/20">
                     <p className="text-sm text-white mb-2">Global Score</p>
-                    <p className="text-xl text-[#ff8800]">{globalScore + totalTodayScore}</p>
+                    <p className="text-xl text-[#ff8800]">{globalScore}</p>
                   </div>
                 </div>
               ) : (
@@ -350,7 +380,7 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
                   </div>
                   <div className="p-4 border-2 border-[#ff8800] rounded-xl bg-black/20">
                     <p className="text-sm text-white mb-2">Global Score</p>
-                    <p className="text-xl text-[#ff8800]">{globalScore + totalTodayScore}</p>
+                    <p className="text-xl text-[#ff8800]">{globalScore}</p>
                   </div>
                 </>
               )}
@@ -389,14 +419,16 @@ export default function Game({ userId, seasonId, onBack }: GameProps) {
               </div>
             )}
 
-            <div className="mt-6">
-              <button 
-                onClick={handleShare}
-                className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
-              >
-                Share Daily Score
-              </button>
-            </div>
+            {!hasShared && (
+              <div className="mt-6">
+                <button 
+                  onClick={handleShare}
+                  className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
+                >
+                  Share Daily Score
+                </button>
+              </div>
+            )}
 
             <div className="mt-6">
               <div className="text-white text-lg">

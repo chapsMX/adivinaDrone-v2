@@ -77,6 +77,12 @@ export async function GET(request: Request) {
         i.option_3
       FROM images i
       WHERE i.season_id = ${realSeasonId}
+      AND i.id NOT IN (
+        SELECT image_id 
+        FROM user_seen_images 
+        WHERE user_id = ${userId} 
+        AND season_id = ${realSeasonId}
+      )
       ORDER BY RANDOM()
       LIMIT 3;
     ` as unknown as Image[];

@@ -174,7 +174,7 @@ export default function AdivinaDrone(
       </header>
 
       <main className="min-w-screen flex-1 flex items-start justify-center p-0">
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1 w-[95%]">
           {isGameActive && context?.user ? (
             <Game 
               userId={context.user.fid.toString()} 
@@ -183,16 +183,10 @@ export default function AdivinaDrone(
             />
           ) : (
             <>
-              <div className="w-[300px] mx-auto">
-                <h1 className="text-2xl font-bold text-center mb-1">{title}</h1>
-                <div>
-                </div>
-              </div>
 
               <div className="flex flex-col items-center gap-2 mb-4">
-                <h1 className={`text-4xl font-bold ${protoMono.className}`}>adivinaDrone</h1>
-                
-              <h2 className={`text-3xl font-semibold opacity-90 ${protoMono.className}`}>Season 07</h2>
+                <h1 className={`text-4xl font-bold ${protoMono.className}`}>adivinaDrone<hr></hr>
+              <center>Season 07</center></h1>
               </div>
               <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
               <Button
@@ -211,13 +205,15 @@ export default function AdivinaDrone(
                     src="/mapaTrans.png"
                     alt="Background Map"
                     fill
+                    priority
+                    sizes="100vw"
                     style={{ objectFit: 'fill' }}
                     className="opacity-80"
                   />
                 </div>
                 <div className={`relative z-10 text-center space-y-3 ${protoMono.className}`}>
                   <div className="flex flex-col gap-3">
-                  <h2 className={`text-3xl font-semibold opacity-90 ${protoMono.className}`}>&nbsp;{context?.user?.username || 'adivinaDrone'}&nbsp;</h2> 
+                  <h2 className={`text-3xl font-semibold opacity-90 ${protoMono.className}`}>Hello&nbsp;{context?.user?.username || 'adivinaDrone'}</h2> 
                   <h2 className={`text-2xl font-semibold opacity-90 ${protoMono.className}`}>Ready to play?</h2>
                   </div>
                   <div className="mt-6">
@@ -273,7 +269,7 @@ export default function AdivinaDrone(
         </div>
       </main>
 
-      <footer className={`w-full overflow-hidden py-2 mb-4 ${isGameActive ? 'hidden' : ''}`}>
+      <footer className={`w-full overflow-hidden py-2 mb-3 ${isGameActive ? 'hidden' : ''}`}>
         <div className="relative flex flex-col gap-0.5">
           <div className="marquee">
             <div className="track">

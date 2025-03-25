@@ -420,7 +420,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
                   onClick={handleShare}
                   className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
                 >
-                  Share Daily Score
+                  Share Daily Score (+1000 points)
                 </button>
               </div>
             )}

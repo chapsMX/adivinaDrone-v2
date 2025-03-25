@@ -37,8 +37,12 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
 
       // Obtener top 3 jugadores
       fetch('/api/leaderboard/top')
-        .then(res => res.json())
+        .then(res => {
+          console.log('Leaderboard response status:', res.status);
+          return res.json();
+        })
         .then(data => {
+          console.log('Leaderboard data:', data);
           // Asegurarnos de que data sea un array
           const players = Array.isArray(data) ? data : [];
           setTopPlayers(players);
@@ -64,7 +68,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
           </svg>
         </button>
 
-        <h2 className={`text-3xl font-bold text-white text-center mb-6 ${protoMono.className}`}>Season 7</h2>
+        <h2 className={`text-3xl font-bold text-white text-center mb-6 ${protoMono.className}`}>Season Beta</h2>
 
         <div className="space-y-6">
           <div className="p-4 border border-[#ff8800] rounded-xl bg-black/20">
@@ -111,26 +115,26 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
             </div>
           </div>
 
-          <div className="p-4 border border-[#ff8800] rounded-xl bg-black/20">
-            <h3 className={`text-xl font-bold text-white mb-4 ${protoMono.className}`}>Top Players</h3>
+          <div className="p-3 border border-[#ff8800] rounded-xl bg-black/20">
+            <h3 className={`text-lg font-bold text-white mb-3 ${protoMono.className}`}>Top Players</h3>
             <div className="space-y-0">
               {Array.isArray(topPlayers) && topPlayers.map((player, index) => (
                 <div 
                   key={`player-${index}`} 
-                  className={`flex items-center gap-3 p-3 ${index % 2 === 0 ? 'bg-black/20' : 'bg-black/10'}`}
+                  className={`flex items-center gap-2 p-2 ${index % 2 === 0 ? 'bg-black/20' : 'bg-black/10'}`}
                 >
-                  <span className={`text-lg font-bold text-white ${protoMono.className}`}>#{index + 1}</span>
-                  <div className="relative w-8 h-8">
+                  <span className={`text-base font-bold text-white ${protoMono.className}`}>#{index + 1}</span>
+                  <div className="relative w-6 h-6">
                     <Image
-                      src={player.pfp_url || `/images/seasons/0/adivinadrone_${String(index + 1).padStart(3, '0')}.jpg`}
-                      alt={player.username}
+                      src={player.pfp_url || '/default-avatar.png'}
+                      alt={player.username || 'Anónimo'}
                       fill
                       className="rounded-full border border-[#ff8800] object-cover"
                       unoptimized
                     />
                   </div>
-                  <span className={`flex-1 text-white ${protoMono.className}`}>{player.username}</span>
-                  <span className={`font-bold text-white ${protoMono.className}`}>{player.score}</span>
+                  <span className={`flex-1 text-sm text-white ${protoMono.className}`}>{player.username || 'Anónimo'}</span>
+                  <span className={`font-bold text-sm text-white ${protoMono.className}`}>{player.score}</span>
                 </div>
               ))}
             </div>

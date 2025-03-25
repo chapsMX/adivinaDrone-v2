@@ -14,6 +14,7 @@ import { InstagramIcon, TikTokIcon } from '@/styles/svg/index';
 import '@/styles/footer.css';
 import Game from './Game';
 import Dashboard from './Dashboard';
+import Popup from './Popup';
 
 export default function AdivinaDrone() {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
@@ -25,6 +26,9 @@ export default function AdivinaDrone() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isEarlyAccessRequested, setIsEarlyAccessRequested] = useState(false);
   const [isWhitelisted, setIsWhitelisted] = useState(false);
+  const [dailyLimitMessage, setDailyLimitMessage] = useState<string | null>(null);
+  const [hasPerfectScore, setHasPerfectScore] = useState(false);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
 
   // contexto del frame
   useEffect(() => {
@@ -115,50 +119,92 @@ export default function AdivinaDrone() {
       }
       return;
     }
-    setIsGameActive(true);
+
+    // Verificar si el usuario puede jugar
+    try {
+      const response = await fetch(`/api/game?userId=${context.user.fid}&seasonId=Season 00&extraLife=false&username=${context.user.username}`);
+      const data = await response.json();
+      
+      if (response.status === 403) {
+        setDailyLimitMessage(data.error);
+        setHasPerfectScore(data.perfectScore || false);
+        setIsPopupOpen(true);
+        return;
+      }
+      
+      setIsGameActive(true);
+    } catch (error) {
+      console.error('Error checking game availability:', error);
+      alert('Error al verificar disponibilidad del juego. Por favor, intenta de nuevo.');
+    }
   };
 
   const handleJoinEarlyAccess = async () => {
-    if (!context?.user) return;
+    if (!context?.user) {
+      console.log('No hay usuario en el contexto');
+      return;
+    }
     
     try {
+      const userData = {
+        userId: context.user.fid,
+        username: context.user.username
+      };
+      console.log('Iniciando proceso de early access para:', userData);
+      
       // 1. Actualizar la base de datos
       const response = await fetch('/api/user/early-access', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: context.user.fid,
-          username: context.user.username
-        }),
+        body: JSON.stringify(userData)
       });
 
-      if (response.ok) {
-        setIsEarlyAccessRequested(true);
+      console.log('Respuesta del servidor:', {
+        status: response.status,
+        statusText: response.statusText
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error en la respuesta del servidor:', {
+          status: response.status,
+          data: errorData
+        });
+        return;
+      }
+
+      console.log('Usuario agregado a early access correctamente');
+      setIsEarlyAccessRequested(true);
+      
+      // 2. Agregar el frame
+      console.log('Intentando agregar el frame...');
+      const result = await sdk.actions.addFrame();
+      console.log('Resultado de addFrame:', result);
+      
+      if (result.notificationDetails) {
+        console.log('Frame agregado correctamente, procediendo a compartir');
+        // 3. Compartir en Warpcast
+        const text = "I just joined /adivinadrone \nA fun game by @chaps which you can join too 👇 👇 ";
+        const url = window.location.href;
         
         try {
-          // 2. Agregar el frame
-          const result = await sdk.actions.addFrame();
-          
-          if (result.notificationDetails) {
-            // 3. Compartir en Warpcast
-            const text = "I just joined /adivinadrone \nA fun game by @chaps which you can join too 👇 👇 ";
-            const url = window.location.href;
-            await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
-          }
-        } catch (error) {
-          if (error instanceof AddFrame.RejectedByUser) {
-            console.error('Frame rejected by user:', error.message);
-          } else if (error instanceof AddFrame.InvalidDomainManifest) {
-            console.error('Invalid domain manifest:', error.message);
-          } else {
-            console.error('Error adding frame:', error);
-          }
+          await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
+          console.log('Ventana de compartir abierta correctamente');
+        } catch (shareError) {
+          console.error('Error al abrir ventana de compartir:', shareError);
         }
       }
     } catch (error) {
-      console.error('Error in early access flow:', error);
+      console.error('Error en el flujo de early access:', error);
+      if (error instanceof AddFrame.RejectedByUser) {
+        console.log('Usuario rechazó agregar el frame:', error.message);
+      } else if (error instanceof AddFrame.InvalidDomainManifest) {
+        console.log('Error de manifiesto del dominio:', error.message);
+      } else {
+        console.log('Error desconocido:', error);
+      }
     }
   };
 
@@ -265,9 +311,12 @@ export default function AdivinaDrone() {
           {isGameActive && context?.user ? (
             <Game 
               userId={context.user.fid.toString()} 
-              seasonId="0"
+              seasonId="Season 00"
               username={context.user.username || 'Anónimo'}
-              onBack={() => setIsGameActive(false)}
+              onBack={() => {
+                setIsGameActive(false);
+                setDailyLimitMessage(null);
+              }}
             />
           ) : (
             <>
@@ -281,13 +330,26 @@ export default function AdivinaDrone() {
               <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
                 {context?.user ? (
                   isWhitelisted ? (
-                    <Button
-                      onClick={handleStartGame}
-                      disabled={isConnecting}
-                      className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      {isConnecting ? 'Connecting...' : 'Start Game'}
-                    </Button>
+                    dailyLimitMessage ? (
+                      <div className="text-center">
+                        {!hasPerfectScore && (
+                          <Button
+                            onClick={() => setIsGameActive(true)}
+                            className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors"
+                          >
+                            Use Extra Life
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={handleStartGame}
+                        disabled={isConnecting}
+                        className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        {isConnecting ? 'Connecting...' : 'Start Game'}
+                      </Button>
+                    )
                   ) : isEarlyAccessRequested ? (
                     <div className="text-center">
                       <p className="text-lg mb-4">Thanks for your interest in adivinaDrone! We will notify you when you get access to the game.</p>
@@ -388,6 +450,13 @@ export default function AdivinaDrone() {
           </div>
         </div>
       </footer>
+
+      {/* Popup para mensajes de límite diario */}
+      <Popup
+        isOpen={isPopupOpen}
+        message={dailyLimitMessage || ''}
+        onClose={() => setIsPopupOpen(false)}
+      />
     </div>
   );
 }

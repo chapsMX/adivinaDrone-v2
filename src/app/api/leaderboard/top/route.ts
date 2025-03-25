@@ -5,14 +5,22 @@ const sql = neon(process.env.DATABASE_URL!);
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 
 interface LeaderboardRow {
-  user_id: string;
+  farcaster_id: string;
   score: number;
 }
 
-interface UserProfile {
-  fid: string;
+interface NeynarUser {
+  fid: number;
   username: string;
-  pfp_url: string | null;
+  display_name: string;
+  pfp_url: string;
+}
+
+interface NeynarResponse {
+  users: NeynarUser[];
+  next: {
+    cursor: string | null;
+  };
 }
 
 interface CombinedResult {
@@ -23,21 +31,26 @@ interface CombinedResult {
 
 async function fetchUserProfiles(fids: string[]) {
   try {
+    console.log('Fetching profiles for FIDs:', fids);
     const response = await fetch(
       `https://api.neynar.com/v2/farcaster/user/bulk?fids=${fids.join(',')}`,
       {
         headers: {
           'accept': 'application/json',
-          'api_key': NEYNAR_API_KEY || '',
+          'x-api-key': NEYNAR_API_KEY || '',
+          'x-neynar-experimental': 'false'
         }
       }
     );
     
     if (!response.ok) {
+      console.error('Neynar API error:', response.status, response.statusText);
       throw new Error('Error fetching user profiles');
     }
     
-    const data = await response.json();
+    const data = await response.json() as NeynarResponse;
+    console.log('Neynar API response:', data);
+
     return data.users;
   } catch (error) {
     console.error('Error fetching user profiles:', error);
@@ -61,28 +74,39 @@ export async function GET() {
     // Obtener top 10 jugadores directamente de season_points
     const result = await sql`
       SELECT DISTINCT
-        sp.user_id,
+        u.farcaster_id,
         sp.total_points as score
       FROM season_points sp
+      JOIN users u ON u.id = sp.user_id
       WHERE sp.season_id = ${realSeasonId}
       ORDER BY sp.total_points DESC
       LIMIT 10;
     `;
 
+    console.log('Database result:', result);
+
     // Obtener los perfiles de usuario de Neynar
-    const fids = (result as LeaderboardRow[]).map((row) => row.user_id);
+    const fids = (result as LeaderboardRow[]).map(row => row.farcaster_id);
     const userProfiles = await fetchUserProfiles(fids);
+
+    console.log('User profiles from Neynar:', userProfiles);
 
     // Combinar los resultados
     const combinedResults = (result as LeaderboardRow[]).map((row): CombinedResult => {
-      const userProfile = userProfiles.find((profile: UserProfile) => profile.fid === row.user_id);
+      const userProfile = userProfiles.find(
+        profile => String(profile.fid) === row.farcaster_id
+      );
+      
+      console.log('Matching profile for farcaster_id:', row.farcaster_id, userProfile);
+      
       return {
-        username: userProfile?.username || 'Anónimo',
+        username: userProfile?.display_name || userProfile?.username || 'Anónimo',
         score: row.score,
         pfp_url: userProfile?.pfp_url || null
       };
     });
 
+    console.log('Final combined results:', combinedResults);
     return NextResponse.json(combinedResults);
   } catch (error) {
     console.error('Error fetching top players:', error);

@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     const userId = searchParams.get('userId');
     const seasonId = searchParams.get('seasonId');
     const username = searchParams.get('username');
+    const extraLife = searchParams.get('extraLife') === 'true';
 
     if (!userId || !seasonId || !username) {
       return NextResponse.json(
@@ -27,6 +28,31 @@ export async function GET(request: Request) {
     }
 
     console.log('Buscando imágenes para:', { userId, seasonId });
+
+    // Verificar el límite diario de respuestas
+    const dailyAnswers = await sql`
+      SELECT COUNT(*) as count
+      FROM answers
+      WHERE user_id = ${userId}
+      AND DATE(created_at) = CURRENT_DATE;
+    `;
+
+    console.log('Respuestas hoy:', dailyAnswers[0].count);
+
+    if (!extraLife && dailyAnswers[0].count >= 3) {
+      return NextResponse.json({
+        error: "Daily limit reached. You can still use an extra life!",
+        dailyLimit: true
+      }, { status: 403 });
+    }
+
+    if (extraLife && dailyAnswers[0].count >= 4) {
+      return NextResponse.json({
+        error: "You've used all your attempts today, including extra life. Come back tomorrow!",
+        dailyLimit: true,
+        extraLifeUsed: true
+      }, { status: 403 });
+    }
 
     // Primero, obtener el ID real de la temporada
     const seasonResult = await sql`
@@ -68,7 +94,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // Obtener 3 imágenes aleatorias
+    // Obtener imágenes aleatorias (3 para juego normal, 1 para vida extra)
+    const limit = extraLife ? 1 : 3;
     const result = await sql`
       SELECT 
         i.id,
@@ -86,7 +113,7 @@ export async function GET(request: Request) {
         AND season_id = ${realSeasonId}
       )
       ORDER BY RANDOM()
-      LIMIT 3;
+      LIMIT ${limit};
     ` as unknown as Image[];
 
     console.log('Imágenes encontradas:', result.length);

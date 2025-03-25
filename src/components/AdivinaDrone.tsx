@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useState } from "react";
 import sdk, {
        AddFrame,
        type Context,
@@ -10,24 +10,21 @@ import  {signIn, getCsrfToken} from "next-auth/react";
 import { Button } from "../styles/ui/Button";
 import { protoMono } from '@/styles/fonts';
 import Image from 'next/image';
-import { InstagramIcon, TikTokIcon, AddFrameIcon } from '@/styles/svg/index';
+import { InstagramIcon, TikTokIcon } from '@/styles/svg/index';
 import '@/styles/footer.css';
 import Game from './Game';
 import Dashboard from './Dashboard';
 
-export default function AdivinaDrone(
-  { title }: { title?: string } = { title: "adivinaDrone" }
-) {
+export default function AdivinaDrone() {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [context, setContext] = useState<Context.FrameContext>();
-  const [added, setAdded] = useState(false);
-  const [addFrameResult, setAddFrameResult] = useState("");
   const [isGameActive, setIsGameActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   // const { address } = useAccount();
-  const [walletAddress, setWalletAddress] = useState<string>('');
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isEarlyAccessRequested, setIsEarlyAccessRequested] = useState(false);
+  const [isWhitelisted, setIsWhitelisted] = useState(false);
 
   // contexto del frame
   useEffect(() => {
@@ -35,28 +32,13 @@ export default function AdivinaDrone(
       const context = await sdk.context;
       console.log('Farcaster context:', context); // Para debug
       setContext(context);
-      setAdded(context.client.added);
-
-      // Intentamos obtener la billetera
-      if (context.user) {
-        try {
-          const provider = await sdk.wallet.ethProvider;
-          const accounts = await provider.request({ method: 'eth_requestAccounts' });
-          if (accounts[0]) {
-            setWalletAddress(accounts[0]);
-            console.log('Connected wallet:', accounts[0]); // Para debug
-          }
-        } catch (error) {
-          console.error('Error getting wallet:', error);
-        }
-      }
 
       sdk.on("frameAddRejected", ({ reason }) => {
         console.log(`Frame add rejected: ${reason}`);
       });
 
       sdk.on("frameRemoved", () => {
-        setAdded(false);
+        console.log("Frame removed");
       });
 
       sdk.on("primaryButtonClicked", () => {
@@ -79,7 +61,8 @@ export default function AdivinaDrone(
   // Inicio de sesión después de que el frame esté cargado
   useEffect(() => {
     const signInUser = async () => {
-      if (isSDKLoaded && !isSigningIn) {
+      // Solo intentar sign in si no hay usuario en el contexto
+      if (isSDKLoaded && !isSigningIn && !context?.user) {
         setIsSigningIn(true);
         try {
           const nonce = await getCsrfToken();
@@ -100,31 +83,24 @@ export default function AdivinaDrone(
     };
 
     signInUser();
-  }, [isSDKLoaded]);
+  }, [isSDKLoaded, isSigningIn, context?.user]);
 
-  const addFrame = useCallback(async () => {
-    try {
-      const result = await sdk.actions.addFrame();
-
-      if (result.notificationDetails) {
-        setAddFrameResult(
-          result.notificationDetails
-            ? `Added, got notificaton token ${result.notificationDetails.token} and url ${result.notificationDetails.url}`
-            : "Added, got no notification details"
-        );
+  useEffect(() => {
+    const checkUserStatus = async () => {
+      if (context?.user) {
+        try {
+          const response = await fetch(`/api/user/status?userId=${context.user.fid}`);
+          const data = await response.json();
+          setIsEarlyAccessRequested(data.early_access_requested);
+          setIsWhitelisted(data.is_whitelisted);
+        } catch (error) {
+          console.error('Error checking user status:', error);
+        }
       }
-    } catch (error) {
-      if (error instanceof AddFrame.RejectedByUser) {
-        setAddFrameResult(`Not added: ${error.message}`);
-      }
+    };
 
-      if (error instanceof AddFrame.InvalidDomainManifest) {
-        setAddFrameResult(`Not added: ${error.message}`);
-      }
-
-      setAddFrameResult(`Error: ${error}`);
-    }
-  }, []);
+    checkUserStatus();
+  }, [context?.user]);
 
   const handleStartGame = async () => {
     if (!context?.user) {
@@ -142,10 +118,105 @@ export default function AdivinaDrone(
     setIsGameActive(true);
   };
 
+  const handleJoinEarlyAccess = async () => {
+    if (!context?.user) return;
+    
+    try {
+      // 1. Actualizar la base de datos
+      const response = await fetch('/api/user/early-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: context.user.fid,
+          username: context.user.username
+        }),
+      });
+
+      if (response.ok) {
+        setIsEarlyAccessRequested(true);
+        
+        try {
+          // 2. Agregar el frame
+          const result = await sdk.actions.addFrame();
+          
+          if (result.notificationDetails) {
+            // 3. Compartir en Warpcast
+            const text = "I just joined /adivinadrone \nA fun game by @chaps which you can join too 👇 👇 ";
+            const url = window.location.href;
+            await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
+          }
+        } catch (error) {
+          if (error instanceof AddFrame.RejectedByUser) {
+            console.error('Frame rejected by user:', error.message);
+          } else if (error instanceof AddFrame.InvalidDomainManifest) {
+            console.error('Invalid domain manifest:', error.message);
+          } else {
+            console.error('Error adding frame:', error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error in early access flow:', error);
+    }
+  };
+
   // carga el componente
   if (!isSDKLoaded) {
-    return <div>Loading...</div>;
+    console.log('SDK not loaded yet');
+    return (
+      <div className="min-h-screen bg-[#2d283a] text-white font-mono flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
   }
+
+  console.log('Current states:', {
+    isSDKLoaded,
+    context: context?.user ? 'User logged in' : 'No user',
+    isEarlyAccessRequested,
+    isWhitelisted,
+    isGameActive
+  });
+
+  // Si no hay contexto de usuario, mostrar la pantalla de conexión
+  if (!context?.user) {
+    return (
+      <div className="min-h-screen bg-[#2d283a] text-white font-mono flex flex-col">
+        <header className={`w-full p-3 flex justify-between items-center ${protoMono.className}`}>
+          <div className="flex items-center">
+            <Image
+              src="/favicon.png"
+              alt="adivinaDrone Logo"
+              width={48}
+              height={48}
+              priority
+            />
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center p-0">
+          <div className="flex flex-col items-center gap-4 w-[95%] max-w-2xl">
+            <h1 className={`text-4xl font-bold ${protoMono.className}`}>
+              adivinaDrone
+              <hr />
+              <center>Season 07</center>
+            </h1>
+            <Button
+              onClick={handleStartGame}
+              disabled={isConnecting}
+              className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+            >
+              {isConnecting ? 'Connecting...' : 'Connect our wallet to start playing'}
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Si hay contexto de usuario, mostrar la pantalla principal
   return (
     <div className="min-h-screen bg-[#2d283a] text-white font-mono flex flex-col">
       <header className={`w-full p-3 flex justify-between items-center ${protoMono.className}`}>
@@ -200,19 +271,44 @@ export default function AdivinaDrone(
             />
           ) : (
             <>
-
               <div className="flex flex-col items-center gap-2 mb-4">
-                <h1 className={`text-4xl font-bold ${protoMono.className}`}>adivinaDrone<hr></hr>
-              <center>Season 07</center></h1>
+                <h1 className={`text-4xl font-bold ${protoMono.className}`}>
+                  adivinaDrone
+                  <hr />
+                  <center>Season 07</center>
+                </h1>
               </div>
               <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
-              <Button
-                  onClick={handleStartGame}
-                  disabled={isConnecting}
-                  className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
-                >
-                  {isConnecting ? 'Connecting...' : context?.user ? 'Starts April 1st' : 'Connect our wallet to start playing'}
-                </Button>
+                {context?.user ? (
+                  isWhitelisted ? (
+                    <Button
+                      onClick={handleStartGame}
+                      disabled={isConnecting}
+                      className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+                    >
+                      {isConnecting ? 'Connecting...' : 'Start Game'}
+                    </Button>
+                  ) : isEarlyAccessRequested ? (
+                    <div className="text-center">
+                      <p className="text-lg mb-4">Thanks for your interest in adivinaDrone! We will notify you when you get access to the game.</p>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={handleJoinEarlyAccess}
+                      className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors"
+                    >
+                      Join Early Access
+                    </Button>
+                  )
+                ) : (
+                  <Button
+                    onClick={handleStartGame}
+                    disabled={isConnecting}
+                    className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {isConnecting ? 'Connecting...' : 'Connect your wallet to start playing'}
+                  </Button>
+                )}
               </div>
               <hr></hr>
               <hr></hr>
@@ -261,25 +357,7 @@ export default function AdivinaDrone(
                   >
                     <TikTokIcon />
                   </Button>
-
-                  <Button 
-                    onClick={addFrame} 
-                    disabled={added} 
-                    className="flex-1"
-                  >
-                    <AddFrameIcon />
-                  </Button>
                 </div>
-
-{/*                 <div className="w-full mt-1">
-                  <div className="mb-4">
-                    {addFrameResult && (
-                      <div className="mb-2 text-xs text-left opacity-50">
-                        Add frame result: {addFrameResult}
-                      </div>
-                    )}
-                  </div>
-                </div> */}
               </div> 
             </>
           )}

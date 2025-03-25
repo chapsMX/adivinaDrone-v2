@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { protoMono } from '@/styles/fonts';
 import sdk from "@farcaster/frame-sdk";
@@ -44,7 +44,6 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
   const [answers, setAnswers] = useState<AnswerResult[]>([]);
   const [showingResults, setShowingResults] = useState(false);
   const [globalScore, setGlobalScore] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string>();
   const [isApproving, setIsApproving] = useState(false);
   const [hasExtraLife, setHasExtraLife] = useState(false);
@@ -56,7 +55,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
     token: TOKEN_ADDRESS,
   });
 
- const { writeContractAsync: transfer } = useWriteContract();
+  const { writeContractAsync: transfer } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: transactionHash as `0x${string}`,
@@ -81,7 +80,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
     });
   };
 
-  const fetchImages = async () => {
+  const fetchImages = useCallback(async () => {
     try {
       setIsLoading(true);
       setIsPreloading(true);
@@ -122,11 +121,11 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
         setIsPreloading(false);
       }, 500);
     }
-  };
+  }, [userId, seasonId, hasExtraLife, username]);
 
   useEffect(() => {
     fetchImages();
-  }, [userId, seasonId]);
+  }, [fetchImages]);
 
   const prepareNextImage = async (nextIndex: number) => {
     setIsTransitioning(true);
@@ -170,8 +169,8 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
         }),
       });
 
-      const data = await response.json();
-      console.log("Answer response:", data);
+      await response.json();
+      console.log("Answer submitted successfully");
 
       // Guardar el resultado de la respuesta
       setAnswers(prev => [...prev, {
@@ -257,7 +256,6 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
         });
 
         if (response.ok) {
-          const data = await response.json();
           setGlobalScore(prev => prev + 1000); // Actualizar el score global en UI
           setHasShared(true); // Ocultar el botón después de compartir
         }
@@ -302,14 +300,12 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
   // Efecto para manejar la confirmación de la transacción
   useEffect(() => {
     if (isConfirmed) {
-      setIsModalOpen(true);
       setHasExtraLife(true);
     }
   }, [isConfirmed]);
 
   const handlePlayExtraLife = () => {
     setShowingResults(false);
-    setIsModalOpen(false);
     fetchImages(); // Recargar el juego con una sola imagen
   };
 
@@ -340,8 +336,6 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
     const extraLifeScore = extraLifeAnswer 
       ? (extraLifeAnswer.isCorrect ? (extraLifeAnswer.timeLeft * 50) : 0) 
       : 0;
-    
-    const totalTodayScore = normalScore + extraLifeScore;
 
     return (
       <div className="fixed inset-0 bg-[#2d283a] flex items-center justify-center">
@@ -357,7 +351,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
                 // Vista normal (2 columnas: Today y Global)
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 border-2 border-[#ff8800] rounded-xl bg-black/20">
-                    <p className="text-sm text-white mb-2">Today's Score</p>
+                    <p className="text-sm text-white mb-2">Today&apos;s Score</p>
                     <p className="text-xl text-[#ff8800]">{normalScore}</p>
                   </div>
                   <div className="p-4 border-2 border-[#ff8800] rounded-xl bg-black/20">
@@ -370,7 +364,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 border-2 border-[#ff8800] rounded-xl bg-black/20">
-                      <p className="text-sm text-white mb-2">Today's Score</p>
+                      <p className="text-sm text-white mb-2">Today&apos;s Score</p>
                       <p className="text-xl text-[#ff8800]">{normalScore}</p>
                     </div>
                     <div className="p-4 border-2 border-[#ff8800] rounded-xl bg-black/20">

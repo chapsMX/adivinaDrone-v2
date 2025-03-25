@@ -19,6 +19,7 @@ CREATE TABLE seasons (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     is_active BOOLEAN DEFAULT false,
+    is_early_access BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -38,6 +39,8 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     farcaster_id VARCHAR(50) NOT NULL UNIQUE,
     username VARCHAR(50),
+    early_access_requested BOOLEAN DEFAULT false,
+    is_whitelisted BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

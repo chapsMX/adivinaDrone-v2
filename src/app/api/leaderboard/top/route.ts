@@ -4,6 +4,23 @@ import { neon } from '@neondatabase/serverless';
 const sql = neon(process.env.DATABASE_URL!);
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 
+interface LeaderboardRow {
+  user_id: string;
+  score: number;
+}
+
+interface UserProfile {
+  fid: string;
+  username: string;
+  pfp_url: string | null;
+}
+
+interface CombinedResult {
+  username: string;
+  score: number;
+  pfp_url: string | null;
+}
+
 async function fetchUserProfiles(fids: string[]) {
   try {
     const response = await fetch(
@@ -53,12 +70,12 @@ export async function GET() {
     `;
 
     // Obtener los perfiles de usuario de Neynar
-    const fids = result.map((row: any) => row.user_id);
+    const fids = (result as LeaderboardRow[]).map((row) => row.user_id);
     const userProfiles = await fetchUserProfiles(fids);
 
     // Combinar los resultados
-    const combinedResults = result.map((row: any) => {
-      const userProfile = userProfiles.find((profile: any) => profile.fid === row.user_id);
+    const combinedResults = (result as LeaderboardRow[]).map((row): CombinedResult => {
+      const userProfile = userProfiles.find((profile: UserProfile) => profile.fid === row.user_id);
       return {
         username: userProfile?.username || 'Anónimo',
         score: row.score,

@@ -6,7 +6,7 @@ interface ExtendedUserContext {
 }
 
 type EthereumProvider = {
-  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
 export function frameConnector() {

@@ -104,7 +104,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
                     console.error('Error sharing stats:', error);
                   }
                 }}
-                className="w-full mt-4 border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors"
+                className={`w-full mt-4 border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors ${protoMono.className}`}
               >
                 Share Stats
               </button>

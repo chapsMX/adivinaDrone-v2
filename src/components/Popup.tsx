@@ -28,9 +28,7 @@ export default function Popup({ message, isOpen, onClose }: PopupProps) {
         </button>
         
         {/* Mensaje */}
-        <div className="text-white text-center mt-2">
-          {message}
-        </div>
+        <div className="text-white text-center mt-2" dangerouslySetInnerHTML={{ __html: message }} />
       </div>
     </div>
   );

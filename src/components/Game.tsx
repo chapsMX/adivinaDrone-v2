@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { protoMono } from '@/styles/fonts';
 import sdk from "@farcaster/frame-sdk";
-import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useBalance, useWriteContract } from 'wagmi';
 import { tokenContract, TOKEN_ADDRESS, LIFE_COST } from '@/lib/contracts';
 import { formatUnits } from 'viem';
 
@@ -30,10 +30,12 @@ interface GameProps {
   userId: string;
   seasonId: string;
   username: string;
+  hasExtraLife?: boolean;
+  extraLife?: boolean;
   onBack?: () => void;
 }
 
-export default function Game({ userId, seasonId, username, onBack }: GameProps) {
+export default function Game({ userId, seasonId, username, extraLife = false, onBack }: GameProps) {
   const [images, setImages] = useState<GameImage[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [options, setOptions] = useState<string[]>([]);
@@ -44,9 +46,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
   const [answers, setAnswers] = useState<AnswerResult[]>([]);
   const [showingResults, setShowingResults] = useState(false);
   const [globalScore, setGlobalScore] = useState(0);
-  const [transactionHash, setTransactionHash] = useState<string>();
   const [isApproving, setIsApproving] = useState(false);
-  const [hasExtraLife, setHasExtraLife] = useState(false);
   const [hasShared, setHasShared] = useState(false);
 
   const { address } = useAccount();
@@ -56,10 +56,6 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
   });
 
   const { writeContractAsync: transfer } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash: transactionHash as `0x${string}`,
-  });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -84,17 +80,18 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
     try {
       setIsLoading(true);
       setIsPreloading(true);
-      const response = await fetch(`/api/game?userId=${userId}&seasonId=${seasonId}&extraLife=${hasExtraLife}&username=${username}`);
+      console.log('Fetching images with extraLife:', extraLife);
+      const response = await fetch(`/api/game?userId=${userId}&seasonId=${seasonId}&extraLife=${extraLife}&username=${username}`);
       const data = await response.json();
       
-      if (data.error) {
-        console.error(data.error);
+      if (!response.ok) {
+        console.error('Error fetching images:', data.error);
         return;
       }
 
       if (data.images && data.images.length > 0) {
         // Si es vida extra, usamos solo la primera imagen
-        const imagesToUse = hasExtraLife ? [data.images[0]] : data.images;
+        const imagesToUse = extraLife ? [data.images[0]] : data.images;
         
         // Precargar todas las imágenes antes de mostrarlas
         await Promise.all(imagesToUse.map((img: GameImage) => preloadImage(img.image_path)));
@@ -121,7 +118,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
         setIsPreloading(false);
       }, 500);
     }
-  }, [userId, seasonId, hasExtraLife, username]);
+  }, [userId, seasonId, extraLife, username]);
 
   useEffect(() => {
     fetchImages();
@@ -182,7 +179,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
       }]);
       
       // Si es vida extra, mostramos resultados inmediatamente
-      if (hasExtraLife) {
+      if (extraLife) {
         try {
           const scoreResponse = await fetch(`/api/user/score?userId=${userId}`);
           if (!scoreResponse.ok) {
@@ -273,36 +270,43 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
       return;
     }
 
+    if (!tokenBalance) {
+      console.log('No se puede obtener el balance del token');
+      return;
+    }
+
+    // Verificar si el usuario tiene suficiente balance
+    if (tokenBalance.value < LIFE_COST) {
+      console.log('Balance insuficiente:', {
+        balance: formatUnits(tokenBalance.value, tokenBalance.decimals),
+        required: formatUnits(LIFE_COST, tokenBalance.decimals)
+      });
+      alert(`Balance insuficiente. Necesitas ${formatUnits(LIFE_COST, tokenBalance.decimals)} DRONE`);
+      return;
+    }
+
     try {
       console.log('Iniciando compra de vida extra...');
       setIsApproving(true);
       
       // Hacemos la transferencia directamente
-      console.log('Iniciando transferencia de tokens...');
-      const transferHash = await transfer({
+      console.log('Iniciando transferencia de tokens...', {
+        address: tokenContract.address,
+        amount: formatUnits(LIFE_COST, tokenBalance.decimals)
+      });
+
+      await transfer({
         ...tokenContract,
         functionName: 'transfer',
         args: ['0xd5d94f926640cCDf6CC018A058a039C8D5EB045c', LIFE_COST],
       });
-
-      console.log('Hash de transferencia:', transferHash);
-
-      if (transferHash) {
-        setTransactionHash(transferHash);
-      }
     } catch (error) {
       console.error('Error detallado al comprar vida:', error);
+      alert('Error al procesar la transacción. Por favor, intenta de nuevo.');
     } finally {
       setIsApproving(false);
     }
   };
-
-  // Efecto para manejar la confirmación de la transacción
-  useEffect(() => {
-    if (isConfirmed) {
-      setHasExtraLife(true);
-    }
-  }, [isConfirmed]);
 
   const handlePlayExtraLife = () => {
     setShowingResults(false);
@@ -381,7 +385,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
               )}
             </div>
 
-            {hasIncorrectAnswers && !hasExtraLife && !extraLifeAnswer && (
+            {hasIncorrectAnswers && !extraLifeAnswer && !hasShared && (
               <div className="mt-6 p-4 border-2 border-[#ff8800] rounded-xl bg-black/20">
                 <p className="text-lg text-white mb-3">
                   Want another chance?
@@ -395,15 +399,15 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
                   <button
                     className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
                     onClick={handleBuyLife}
-                    disabled={isApproving || isConfirming}
+                    disabled={isApproving}
                   >
-                    {isApproving ? 'Approving...' : isConfirming ? 'Confirming...' : 'Buy Extra Life'}
+                    {isApproving ? 'Approving...' : 'Buy Extra Life'}
                   </button>
                 </div>
               </div>
             )}
 
-            {hasExtraLife && !extraLifeAnswer && (
+            {extraLife && !extraLifeAnswer && (
               <div className="mt-6">
                 <button
                   className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
@@ -420,7 +424,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
                   onClick={handleShare}
                   className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
                 >
-                  Share Daily Score (+1000 points)
+                  Share Score (+1,000 points)
                 </button>
               </div>
             )}
@@ -428,7 +432,7 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
             <div className="mt-6">
               <div className="text-white text-lg">
                 <p>Come back tomorrow.</p>
-                <p className="text-sm mt-2 opacity-70">New images available every 24 hours!</p>
+                <p className="text-sm mt-2 opacity-70">3 new images daily at 18.00 CST!</p>
               </div>
 
               <button
@@ -496,8 +500,8 @@ export default function Game({ userId, seasonId, username, onBack }: GameProps) 
       </div>
 
       {/* Botones de respuesta */}
-      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
-        <div className="grid grid-cols-2 gap-2 max-w-full mx-2">
+      <div className="absolute bottom-0 left-0 right-0 p-4 pb-12 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
+        <div className="grid grid-cols-2 gap-4 max-w-full mx-2">
           {options.map((option, index) => (
             <button
               key={index}

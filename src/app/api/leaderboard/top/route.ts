@@ -80,7 +80,7 @@ export async function GET() {
       JOIN users u ON u.id = sp.user_id
       WHERE sp.season_id = ${realSeasonId}
       ORDER BY sp.total_points DESC
-      LIMIT 10;
+      LIMIT 5;
     `;
 
     console.log('Database result:', result);

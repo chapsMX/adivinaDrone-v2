@@ -15,6 +15,7 @@ import '@/styles/footer.css';
 import Game from './Game';
 import Dashboard from './Dashboard';
 import Popup from './Popup';
+import { useRouter } from 'next/navigation';
 
 export default function AdivinaDrone() {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
@@ -29,6 +30,7 @@ export default function AdivinaDrone() {
   const [dailyLimitMessage, setDailyLimitMessage] = useState<string | null>(null);
   const [hasPerfectScore, setHasPerfectScore] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const router = useRouter();
 
   // contexto del frame
   useEffect(() => {
@@ -65,7 +67,7 @@ export default function AdivinaDrone() {
   // Inicio de sesión después de que el frame esté cargado
   useEffect(() => {
     const signInUser = async () => {
-      // Solo intentar sign in si no hay usuario en el contexto
+      // Solo intentar sign in si no hay usuario en el contexto y no estamos ya en proceso de sign in
       if (isSDKLoaded && !isSigningIn && !context?.user) {
         setIsSigningIn(true);
         try {
@@ -87,7 +89,7 @@ export default function AdivinaDrone() {
     };
 
     signInUser();
-  }, [isSDKLoaded, isSigningIn, context?.user]);
+  }, [isSDKLoaded, context?.user]);
 
   useEffect(() => {
     const checkUserStatus = async () => {
@@ -324,7 +326,7 @@ export default function AdivinaDrone() {
                 <h1 className={`text-4xl font-bold ${protoMono.className}`}>
                   adivinaDrone
                   <hr />
-                  <center>Season 07</center>
+                  <center>Beta Season</center>
                 </h1>
               </div>
               <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
@@ -334,7 +336,7 @@ export default function AdivinaDrone() {
                       <div className="text-center">
                         {!hasPerfectScore && (
                           <Button
-                            onClick={() => setIsGameActive(true)}
+                            onClick={() => router.push('/extralife')}
                             className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors"
                           >
                             Use Extra Life
@@ -389,15 +391,17 @@ export default function AdivinaDrone() {
                 <div className={`relative z-10 text-center space-y-3 ${protoMono.className}`}>
                   <div className="flex flex-col gap-3">
                   <h2 className={`text-3xl font-semibold opacity-90 ${protoMono.className}`}>Hello&nbsp;{context?.user?.username || 'adivinaDrone'}</h2> 
-                  <h2 className={`text-2xl font-semibold opacity-90 ${protoMono.className}`}>Ready to play?</h2>
+                  <h2 className={`text-2xl font-semibold opacity-90 ${protoMono.className}`}>How to play:</h2>
                   </div>
                   <div className="mt-6">
-                    <p className="text-lg leading-relaxed">
-                      200 photos per season<br />
-                      3 daily random photos<br />
-                      Time based score<br />
-                      Fast answers = more points<br />
-                      $DRONE token rewards
+                    <p className="text-sm leading-relaxed text-left">
+                      * 3 daily random photos<br />
+                      * Guess the location of each photo<br />
+                      * Faster answers = more points<br />
+                      * Leaderboard updated daily<br />
+                      * 5 winners per season<br />
+                      * Images update daily at 18.00 CST
+                      <br />
                     </p>
                   </div>
                 </div>

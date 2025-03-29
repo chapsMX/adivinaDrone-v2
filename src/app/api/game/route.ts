@@ -53,14 +53,14 @@ export async function GET(request: Request) {
       // Si todas las respuestas son correctas, no ofrecer vida extra
       if (correctResponses === 3) {
         return NextResponse.json({
-          error: "Congratulations! You've completed today's challenge perfectly. Come back tomorrow for new images!",
+          error: "Congratulations! You've completed today's challenge perfectly.<br />Come back tomorrow for new images!",
           dailyLimit: true,
           perfectScore: true
         }, { status: 403 });
       }
       
       return NextResponse.json({
-        error: "Daily limit reached. You can still use an extra life!",
+        error: "Daily limit reached.<br />You can buy an extra life!",
         dailyLimit: true,
         perfectScore: false
       }, { status: 403 });
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
 
     if (extraLife && totalResponses >= 4) {
       return NextResponse.json({
-        error: "You've used all your attempts today, including extra life. Come back tomorrow!",
+        error: "You've used all your attempts today, including extra life.<br />Come back tomorrow!",
         dailyLimit: true,
         extraLifeUsed: true
       }, { status: 403 });

@@ -13,17 +13,34 @@ export async function GET(request: Request) {
       );
     }
 
-    // Verificar si el usuario tiene una vida extra para hoy
+    // Verificar si el usuario tiene una vida extra válida
     const existingExtraLife = await sql`
-      SELECT id FROM extra_lives
-      WHERE user_id IN (
+      WITH current_reset AS (
+        SELECT 
+          CASE 
+            WHEN CURRENT_TIME >= TIME '18:00' THEN CURRENT_DATE
+            ELSE CURRENT_DATE - INTERVAL '1 day'
+          END as last_reset
+      )
+      SELECT el.id, el.is_used 
+      FROM extra_lives el, current_reset
+      WHERE el.user_id IN (
         SELECT id FROM users WHERE farcaster_id = ${userId}
       )
-      AND DATE(created_at) = CURRENT_DATE;
+      AND el.season_id = (
+        SELECT id FROM seasons WHERE name = 'Season 07'
+      )
+      AND el.created_at > (
+        SELECT last_reset + TIME '18:00' FROM current_reset
+      )
+      AND el.created_at <= (
+        SELECT last_reset + INTERVAL '1 day' + TIME '18:00' FROM current_reset
+      );
     `;
 
     return NextResponse.json({
-      hasExtraLife: existingExtraLife.length > 0
+      hasExtraLife: existingExtraLife.length > 0,
+      isUsed: existingExtraLife.length > 0 ? existingExtraLife[0].is_used : false
     });
   } catch (error) {
     console.error('Error al verificar vida extra:', error);

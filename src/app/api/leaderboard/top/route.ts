@@ -29,7 +29,7 @@ interface CombinedResult {
   pfp_url: string | null;
 }
 
-async function fetchUserProfiles(fids: string[]) {
+async function fetchUserProfiles(fids: string[]): Promise<NeynarUser[]> {
   try {
     console.log('Fetching profiles for FIDs:', fids);
     const response = await fetch(
@@ -37,8 +37,7 @@ async function fetchUserProfiles(fids: string[]) {
       {
         headers: {
           'accept': 'application/json',
-          'x-api-key': NEYNAR_API_KEY || '',
-          'x-neynar-experimental': 'false'
+          'api_key': NEYNAR_API_KEY || '',
         }
       }
     );
@@ -58,11 +57,14 @@ async function fetchUserProfiles(fids: string[]) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const seasonId = searchParams.get('seasonId') || 'Season 01';
+
     // Obtener el ID real de la temporada
     const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 00';
+      SELECT id FROM seasons WHERE name = ${seasonId};
     `;
 
     if (seasonResult.length === 0) {

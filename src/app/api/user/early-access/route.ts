@@ -18,11 +18,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verificar si la temporada está en early access
+    // Obtener el ID de la temporada actual
     const seasonResult = await sql`
-      SELECT is_early_access
-      FROM seasons
-      WHERE name = 'Season 00';
+      SELECT id FROM seasons 
+      WHERE name = 'Season 07';
     `;
 
     console.log('Season check result:', seasonResult);

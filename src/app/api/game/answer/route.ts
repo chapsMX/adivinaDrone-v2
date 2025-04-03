@@ -18,13 +18,13 @@ export async function POST(request: Request) {
 
     console.log('Procesando respuesta:', { userId, imageId, seasonId, answer, timeLeft });
 
-    // Obtener el ID real de la temporada
+    // Obtener el ID de la temporada
     const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 00';
+      SELECT id FROM seasons WHERE name = 'Season 07';
     `;
 
     if (seasonResult.length === 0) {
-      console.log('No se encontró la temporada Season 00');
+      console.log('No se encontró la temporada Season 07');
       return NextResponse.json(
         { error: 'Temporada no encontrada' },
         { status: 404 }
@@ -70,8 +70,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const isCorrect = imageResult[0].correct_answer === answer;
-    console.log('Resultado:', { isCorrect, correctAnswer: imageResult[0].correct_answer });
+    const correctAnswer = imageResult[0].correct_answer;
+    const isCorrect = answer === correctAnswer;
+    console.log('Respuesta correcta:', isCorrect);
 
     // Marcar la imagen como vista
     await sql`
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
     console.log('Imagen marcada como vista');
 
     // Guardar la respuesta del usuario
-    const points = isCorrect ? timeLeft * 100 : 0; // Puntos basados en el tiempo restante
+    const points = isCorrect ? timeLeft * 50 : 0; // Puntos basados en el tiempo restante
     const responseResult = await sql`
       INSERT INTO user_responses (
         user_id, 
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       isCorrect,
-      correctAnswer: imageResult[0].correct_answer,
+      correctAnswer: correctAnswer,
       userAnswer: answer
     });
   } catch (error) {

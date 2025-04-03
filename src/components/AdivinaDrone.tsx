@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import sdk, {
-       AddFrame,
        type Context,
 } from "@farcaster/frame-sdk";
 // import { useAccount } from 'wagmi';
@@ -18,6 +17,7 @@ import Popup from './Popup';
 import { useRouter } from 'next/navigation';
 
 export default function AdivinaDrone() {
+  const router = useRouter();
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [context, setContext] = useState<Context.FrameContext>();
   const [isGameActive, setIsGameActive] = useState(false);
@@ -25,12 +25,12 @@ export default function AdivinaDrone() {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   // const { address } = useAccount();
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [isEarlyAccessRequested, setIsEarlyAccessRequested] = useState(false);
-  const [isWhitelisted, setIsWhitelisted] = useState(false);
   const [dailyLimitMessage, setDailyLimitMessage] = useState<string | null>(null);
   const [hasPerfectScore, setHasPerfectScore] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const router = useRouter();
+  const [canBuyExtraLife, setCanBuyExtraLife] = useState(false);
+  const [hasExtraLife, setHasExtraLife] = useState(false);
+  const [isExtraLifeUsed, setIsExtraLifeUsed] = useState(false);
 
   // contexto del frame
   useEffect(() => {
@@ -89,24 +89,48 @@ export default function AdivinaDrone() {
     };
 
     signInUser();
-  }, [isSDKLoaded, context?.user]);
+  }, [isSDKLoaded, context?.user, isSigningIn]);
 
   useEffect(() => {
     const checkUserStatus = async () => {
       if (context?.user) {
         try {
-          const response = await fetch(`/api/user/status?userId=${context.user.fid}`);
-          const data = await response.json();
-          setIsEarlyAccessRequested(data.early_access_requested);
-          setIsWhitelisted(data.is_whitelisted);
+          // Registrar al usuario en la base de datos sin restricciones
+          await fetch(`/api/user/status?userId=${context.user.fid}`);
         } catch (error) {
-          console.error('Error checking user status:', error);
+          console.error('Error registering user:', error);
         }
       }
     };
 
     checkUserStatus();
   }, [context?.user]);
+
+  // Verificar si el usuario tiene vida extra al cargar y cuando cambia isGameActive
+  const checkExtraLife = async () => {
+    if (context?.user) {
+      try {
+        const response = await fetch(`/api/extra-life/check?userId=${context.user.fid}`);
+        const data = await response.json();
+        
+        setHasExtraLife(data.hasExtraLife);
+        setIsExtraLifeUsed(data.isUsed);
+        
+        console.log('Extra life status:', {
+          hasExtraLife: data.hasExtraLife,
+          isUsed: data.isUsed
+        });
+      } catch (error) {
+        console.error('Error checking extra life:', error);
+        setHasExtraLife(false);
+        setIsExtraLifeUsed(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkExtraLife();
+  }, [context?.user, isGameActive]);
 
   const handleStartGame = async () => {
     if (!context?.user) {
@@ -122,14 +146,28 @@ export default function AdivinaDrone() {
       return;
     }
 
-    // Verificar si el usuario puede jugar
+    // Si tiene vida extra sin usar, redirigir a la página de vida extra
+    if (hasExtraLife && !isExtraLifeUsed) {
+      router.push('/extralife');
+      return;
+    }
+
+    // Si puede comprar vida extra, redirigir a la página de compra
+    if (canBuyExtraLife) {
+      router.push('/extralife');
+      return;
+    }
+
+    // Verificar si el usuario puede jugar normalmente
     try {
-      const response = await fetch(`/api/game?userId=${context.user.fid}&seasonId=Season 00&extraLife=false&username=${context.user.username}`);
+      const response = await fetch(`/api/game?userId=${context.user.fid}&seasonId=Season 07&extraLife=false&username=${context.user.username}`);
       const data = await response.json();
       
       if (response.status === 403) {
         setDailyLimitMessage(data.error);
         setHasPerfectScore(data.perfectScore || false);
+        // Solo permitimos comprar vida extra si no tiene score perfecto y no ha usado una vida extra hoy
+        setCanBuyExtraLife(!data.perfectScore && !hasExtraLife);
         setIsPopupOpen(true);
         return;
       }
@@ -138,75 +176,6 @@ export default function AdivinaDrone() {
     } catch (error) {
       console.error('Error checking game availability:', error);
       alert('Error al verificar disponibilidad del juego. Por favor, intenta de nuevo.');
-    }
-  };
-
-  const handleJoinEarlyAccess = async () => {
-    if (!context?.user) {
-      console.log('No hay usuario en el contexto');
-      return;
-    }
-    
-    try {
-      const userData = {
-        userId: context.user.fid,
-        username: context.user.username
-      };
-      console.log('Iniciando proceso de early access para:', userData);
-      
-      // 1. Actualizar la base de datos
-      const response = await fetch('/api/user/early-access', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData)
-      });
-
-      console.log('Respuesta del servidor:', {
-        status: response.status,
-        statusText: response.statusText
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error en la respuesta del servidor:', {
-          status: response.status,
-          data: errorData
-        });
-        return;
-      }
-
-      console.log('Usuario agregado a early access correctamente');
-      setIsEarlyAccessRequested(true);
-      
-      // 2. Agregar el frame
-      console.log('Intentando agregar el frame...');
-      const result = await sdk.actions.addFrame();
-      console.log('Resultado de addFrame:', result);
-      
-      if (result.notificationDetails) {
-        console.log('Frame agregado correctamente, procediendo a compartir');
-        // 3. Compartir en Warpcast
-        const text = "I just joined /adivinadrone \nA fun game by @chaps which you can join too 👇 👇 ";
-        const url = window.location.href;
-        
-        try {
-          await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
-          console.log('Ventana de compartir abierta correctamente');
-        } catch (shareError) {
-          console.error('Error al abrir ventana de compartir:', shareError);
-        }
-      }
-    } catch (error) {
-      console.error('Error en el flujo de early access:', error);
-      if (error instanceof AddFrame.RejectedByUser) {
-        console.log('Usuario rechazó agregar el frame:', error.message);
-      } else if (error instanceof AddFrame.InvalidDomainManifest) {
-        console.log('Error de manifiesto del dominio:', error.message);
-      } else {
-        console.log('Error desconocido:', error);
-      }
     }
   };
 
@@ -223,8 +192,6 @@ export default function AdivinaDrone() {
   console.log('Current states:', {
     isSDKLoaded,
     context: context?.user ? 'User logged in' : 'No user',
-    isEarlyAccessRequested,
-    isWhitelisted,
     isGameActive
   });
 
@@ -256,7 +223,7 @@ export default function AdivinaDrone() {
               disabled={isConnecting}
               className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
             >
-              {isConnecting ? 'Connecting...' : 'Connect our wallet to start playing'}
+              {isConnecting ? 'Connecting...' : 'Connect your wallet to start playing'}
             </Button>
           </div>
         </main>
@@ -313,7 +280,7 @@ export default function AdivinaDrone() {
           {isGameActive && context?.user ? (
             <Game 
               userId={context.user.fid.toString()} 
-              seasonId="Season 00"
+              seasonId="Season 07"
               username={context.user.username || 'Anónimo'}
               onBack={() => {
                 setIsGameActive(false);
@@ -326,53 +293,18 @@ export default function AdivinaDrone() {
                 <h1 className={`text-4xl font-bold ${protoMono.className}`}>
                   adivinaDrone
                   <hr />
-                  <center>Beta Season</center>
+                  <center>Season 07</center>
                 </h1>
               </div>
               <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
-                {context?.user ? (
-                  isWhitelisted ? (
-                    dailyLimitMessage ? (
-                      <div className="text-center">
-                        {!hasPerfectScore && (
-                          <Button
-                            onClick={() => router.push('/extralife')}
-                            className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors"
-                          >
-                            Use Extra Life
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={handleStartGame}
-                        disabled={isConnecting}
-                        className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
-                      >
-                        {isConnecting ? 'Connecting...' : 'Start Game'}
-                      </Button>
-                    )
-                  ) : isEarlyAccessRequested ? (
-                    <div className="text-center">
-                      <p className="text-lg mb-4">Thanks for your interest in adivinaDrone! We will notify you when you get access to the game.</p>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={handleJoinEarlyAccess}
-                      className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors"
-                    >
-                      Join Early Access
-                    </Button>
-                  )
-                ) : (
-                  <Button
-                    onClick={handleStartGame}
-                    disabled={isConnecting}
-                    className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
-                  >
-                    {isConnecting ? 'Connecting...' : 'Connect your wallet to start playing'}
-                  </Button>
-                )}
+                <Button
+                  onClick={handleStartGame}
+                  className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {hasExtraLife && !isExtraLifeUsed ? 'Play Your Extra Life' : 
+                   canBuyExtraLife ? 'Buy Extra Life' : 
+                   'Play Now'}
+                </Button>
               </div>
               <hr></hr>
               <hr></hr>
@@ -396,11 +328,11 @@ export default function AdivinaDrone() {
                   <div className="mt-6">
                     <p className="text-sm leading-relaxed text-left">
                       * 3 daily random photos<br />
-                      * Guess the location of each photo<br />
+                      * Guess the location of each one<br />
                       * Faster answers = more points<br />
                       * Leaderboard updated daily<br />
                       * 5 winners per season<br />
-                      * Images update daily at 18.00 CST
+                      * Updated daily at 18.00 CST
                       <br />
                     </p>
                   </div>
@@ -458,8 +390,11 @@ export default function AdivinaDrone() {
       {/* Popup para mensajes de límite diario */}
       <Popup
         isOpen={isPopupOpen}
-        message={dailyLimitMessage || ''}
-        onClose={() => setIsPopupOpen(false)}
+        message={hasPerfectScore ? "Congratulations! You got a perfect score 3/3. Come back tomorrow for 3 new photos." : (dailyLimitMessage || '')}
+        onClose={() => {
+          setIsPopupOpen(false);
+          setHasPerfectScore(false);
+        }}
       />
     </div>
   );

@@ -34,14 +34,18 @@ export async function GET(request: Request) {
       SELECT 
         COUNT(*) as total_count,
         SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_count
-      FROM user_responses
-      WHERE user_id IN (
+      FROM user_responses ur
+      JOIN images i ON ur.image_id = i.id
+      WHERE ur.user_id IN (
         SELECT id FROM users WHERE farcaster_id = ${userId}
       )
-      AND DATE(created_at) = CURRENT_DATE;
+      AND i.season_id = (
+        SELECT id FROM seasons WHERE name = ${seasonId}
+      )
+      AND DATE(ur.created_at) = CURRENT_DATE;
     `;
 
-    console.log('Respuestas hoy:', {
+    console.log('Respuestas hoy en temporada', seasonId, ':', {
       total: dailyAnswers[0].total_count,
       correctas: dailyAnswers[0].correct_count
     });
@@ -76,11 +80,11 @@ export async function GET(request: Request) {
 
     // Primero, obtener el ID real de la temporada
     const seasonResult = await sql`
-      SELECT id FROM seasons WHERE id = 2;
+      SELECT id FROM seasons WHERE name = ${seasonId};
     `;
 
     if (seasonResult.length === 0) {
-      console.log('No se encontró la temporada con ID 2');
+      console.log('No se encontró la temporada:', seasonId);
       return NextResponse.json(
         { error: 'Season not found' },
         { status: 404 }
@@ -159,7 +163,7 @@ export async function GET(request: Request) {
     // Formatear la respuesta con las rutas de las imágenes
     const formattedResult = result.map(row => ({
       ...row,
-      image_path: `/images/seasons/2/adivinadrone_${String(row.image_number).padStart(3, '0')}.jpg`
+      image_path: `/images/seasons/${realSeasonId}/adivinadrone_${String(row.image_number).padStart(3, '0')}.jpg`
     }));
 
     return NextResponse.json({ images: formattedResult });

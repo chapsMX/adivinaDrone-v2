@@ -7,24 +7,27 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    const seasonId = searchParams.get('seasonId') || 'Season 07';
 
     if (!userId) {
       return NextResponse.json(
-        { error: 'User ID is required' },
+        { error: 'Missing userId parameter' },
         { status: 400 }
       );
     }
 
     // Obtener el ID real de la temporada
     const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 00';
+      SELECT id FROM seasons WHERE name = ${seasonId};
     `;
 
     if (seasonResult.length === 0) {
-      return NextResponse.json(
-        { error: 'Season not found' },
-        { status: 404 }
-      );
+      // Si no existe la temporada, devolver valores por defecto
+      return NextResponse.json({
+        gamesPlayed: 0,
+        totalScore: 0,
+        averageResponseTime: 0
+      });
     }
 
     const realSeasonId = seasonResult[0].id;
@@ -35,10 +38,12 @@ export async function GET(request: Request) {
     `;
 
     if (userResult.length === 0) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      // Si no existe el usuario, devolver valores por defecto
+      return NextResponse.json({
+        gamesPlayed: 0,
+        totalScore: 0,
+        averageResponseTime: 0
+      });
     }
 
     const realUserId = userResult[0].id;
@@ -49,19 +54,30 @@ export async function GET(request: Request) {
         SELECT 
           COUNT(DISTINCT DATE(ur.created_at)) as games_played,
           COALESCE(sp.total_points, 0) as total_score,
-          AVG(ur.response_time) as avg_response_time
-        FROM user_responses ur
-        LEFT JOIN season_points sp ON ur.user_id = sp.user_id AND sp.season_id = ${realSeasonId}
-        WHERE ur.user_id = ${realUserId}
-        AND ur.created_at >= CURRENT_DATE - INTERVAL '30 days'
+          ROUND(AVG(ur.response_time)::numeric, 1) as avg_response_time
+        FROM users u
+        LEFT JOIN user_responses ur ON u.id = ur.user_id
+        LEFT JOIN images i ON ur.image_id = i.id
+        LEFT JOIN season_points sp ON u.id = sp.user_id AND sp.season_id = ${realSeasonId}
+        WHERE u.id = ${realUserId}
+        AND i.season_id = ${realSeasonId}
         GROUP BY sp.total_points
       )
       SELECT 
         COALESCE(games_played, 0) as games_played,
         COALESCE(total_score, 0) as total_score,
-        COALESCE(ROUND(avg_response_time::numeric, 1), 0) as avg_response_time
+        COALESCE(avg_response_time, 0) as avg_response_time
       FROM user_stats;
     `;
+
+    // Si no hay resultados, devolver valores por defecto
+    if (statsResult.length === 0) {
+      return NextResponse.json({
+        gamesPlayed: 0,
+        totalScore: 0,
+        averageResponseTime: 0
+      });
+    }
 
     return NextResponse.json({
       gamesPlayed: parseInt(statsResult[0].games_played),
@@ -70,12 +86,11 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Error fetching user stats:', error);
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    // En caso de error, devolver valores por defecto
+    return NextResponse.json({
+      gamesPlayed: 0,
+      totalScore: 0,
+      averageResponseTime: 0
+    });
   }
 } 

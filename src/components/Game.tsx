@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { protoMono } from '@/styles/fonts';
 import sdk from "@farcaster/frame-sdk";
-import { useAccount, useBalance, useWriteContract } from 'wagmi';
+import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useConnect } from 'wagmi';
 import { tokenContract, TOKEN_ADDRESS, LIFE_COST } from '@/lib/contracts';
 import { formatUnits } from 'viem';
 
@@ -48,14 +48,20 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
   const [globalScore, setGlobalScore] = useState(0);
   const [isApproving, setIsApproving] = useState(false);
   const [hasShared, setHasShared] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [transactionHash, setTransactionHash] = useState<string>();
 
-  const { address } = useAccount();
+  const { isConnected, address } = useAccount();
+  const { connect, connectors } = useConnect();
   const { data: tokenBalance } = useBalance({
     address,
     token: TOKEN_ADDRESS,
   });
 
   const { writeContractAsync: transfer } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: transactionHash as `0x${string}`,
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -66,6 +72,46 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
 
     return () => clearInterval(timer);
   }, [timeLeft]);
+
+  useEffect(() => {
+    const registerExtraLife = async () => {
+      if (isConfirmed && transactionHash && userId) {
+        try {
+          const response = await fetch('/api/extra-life', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId,
+              transactionHash,
+            }),
+          });
+
+          const data = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to register extra life');
+          }
+
+          setError(null);
+        } catch (error) {
+          console.error('Error registering extra life:', error);
+          if (error instanceof Error) {
+            if (error.message.includes('already have')) {
+              setError('You already have an extra life for today');
+            } else {
+              setError('Failed to register extra life: ' + error.message);
+            }
+          } else {
+            setError('Failed to register extra life. Please try again');
+          }
+        }
+      }
+    };
+
+    registerExtraLife();
+  }, [isConfirmed, transactionHash, userId]);
 
   // Función para precargar una imagen
   const preloadImage = async (src: string): Promise<void> => {
@@ -178,8 +224,23 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
         timeLeft: timeLeft
       }]);
       
-      // Si es vida extra, mostramos resultados inmediatamente
+      // Si es vida extra, marcarla como usada
       if (extraLife) {
+        try {
+          await fetch("/api/extra-life/use", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId,
+              seasonId
+            }),
+          });
+        } catch (error) {
+          console.error("Error marking extra life as used:", error);
+        }
+
         try {
           const scoreResponse = await fetch(`/api/user/score?userId=${userId}`);
           if (!scoreResponse.ok) {
@@ -187,7 +248,6 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
             setGlobalScore(0);
           } else {
             const scoreData = await scoreResponse.json();
-            // Mantener el score global sin sumar la sesión actual
             setGlobalScore(scoreData.globalScore || 0);
           }
         } catch (error) {
@@ -211,7 +271,6 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
             setGlobalScore(0);
           } else {
             const scoreData = await scoreResponse.json();
-            // El score global ya incluye los puntos de esta sesión
             setGlobalScore(scoreData.globalScore || 0);
           }
         } catch (error) {
@@ -230,79 +289,113 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
     const correctAnswers = answers.filter(a => a.isCorrect).length;
     const normalAnswers = answers.slice(0, 3);
     const normalScore = normalAnswers.reduce((score, answer) => {
-      return score + (answer.isCorrect ? (answer.timeLeft * 100) : 0);
+      return score + (answer.isCorrect ? (answer.timeLeft * 50) : 0);
     }, 0);
     
     try {
+      // Primero registrar el share
+      console.log('Registrando share desde Game:', { userId, seasonId });
+      const shareResponse = await fetch("/api/game/share", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          seasonId
+        }),
+      });
+
+      const shareData = await shareResponse.json();
+      console.log('Respuesta del share:', shareData);
+
+      if (!shareResponse.ok) {
+        throw new Error(shareData.error || 'Failed to register share');
+      }
+
+      // Si el share se registró correctamente, agregar los puntos bonus
+      const bonusResponse = await fetch("/api/game/share-bonus", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          seasonId
+        }),
+      });
+
+      if (bonusResponse.ok) {
+        setGlobalScore(prev => prev + 1000); // Actualizar el score global en UI
+        setHasShared(true); // Ocultar el botón después de compartir
+      }
+
+      // Una vez registrado el share y los puntos, abrir el composer
       const text = `I played my daily round of /adivinadrone and got ${correctAnswers}/3 correct answers! 🎯\nDaily Score: ${normalScore} points\nGlobal Score: ${globalScore} points\nCan you do it better? 🚀`;
       const url = "https://adivinadrone.c13studio.mx";
       
+      // Pequeño delay para asegurar que el share se registre
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
-
-      // Agregar puntos extra por compartir
-      try {
-        const response = await fetch("/api/game/share-bonus", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId,
-            seasonId
-          }),
-        });
-
-        if (response.ok) {
-          setGlobalScore(prev => prev + 1000); // Actualizar el score global en UI
-          setHasShared(true); // Ocultar el botón después de compartir
-        }
-      } catch (error) {
-        console.error('Error adding share bonus:', error);
-      }
     } catch (error) {
-      console.error('Error sharing:', error);
+      console.error('Error al compartir:', error);
+      if (error instanceof Error) {
+        alert('Error al compartir: ' + error.message);
+      } else {
+        alert('Error al compartir. Por favor, intenta de nuevo.');
+      }
     }
   };
 
   const handleBuyLife = async () => {
     if (!address) {
-      console.log('No hay dirección de billetera conectada');
+      setError('Please connect your wallet to purchase an extra life');
       return;
     }
 
     if (!tokenBalance) {
-      console.log('No se puede obtener el balance del token');
+      setError('Unable to fetch your token balance. Please try again');
       return;
     }
 
     // Verificar si el usuario tiene suficiente balance
     if (tokenBalance.value < LIFE_COST) {
-      console.log('Balance insuficiente:', {
-        balance: formatUnits(tokenBalance.value, tokenBalance.decimals),
-        required: formatUnits(LIFE_COST, tokenBalance.decimals)
-      });
-      alert(`Balance insuficiente. Necesitas ${formatUnits(LIFE_COST, tokenBalance.decimals)} DRONE`);
+      const required = formatUnits(LIFE_COST, tokenBalance.decimals);
+      const current = formatUnits(tokenBalance.value, tokenBalance.decimals);
+      setError(`Insufficient balance. You need ${required} DRONE, but you have ${current} DRONE`);
       return;
     }
 
     try {
-      console.log('Iniciando compra de vida extra...');
+      console.log('Starting extra life purchase...');
       setIsApproving(true);
+      setError(null);
       
-      // Hacemos la transferencia directamente
-      console.log('Iniciando transferencia de tokens...', {
-        address: tokenContract.address,
-        amount: formatUnits(LIFE_COST, tokenBalance.decimals)
-      });
-
-      await transfer({
+      const transferHash = await transfer({
         ...tokenContract,
         functionName: 'transfer',
         args: ['0xd5d94f926640cCDf6CC018A058a039C8D5EB045c', LIFE_COST],
       });
+
+      if (transferHash) {
+        setTransactionHash(transferHash);
+      }
     } catch (error) {
-      console.error('Error detallado al comprar vida:', error);
-      alert('Error al procesar la transacción. Por favor, intenta de nuevo.');
+      console.error('Error purchasing life:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('insufficient funds')) {
+          setError('Transaction failed: Insufficient funds for gas fee');
+        } else if (error.message.includes('user rejected')) {
+          setError('Transaction cancelled by user');
+        } else if (error.message.includes('nonce')) {
+          setError('Transaction failed: Please try again');
+        } else {
+          setError('Transaction failed: ' + error.message);
+        }
+      } else {
+        setError('Failed to process transaction. Please try again');
+      }
     } finally {
       setIsApproving(false);
     }
@@ -334,11 +427,11 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
     
     // Calcular scores separados
     const normalScore = normalAnswers.reduce((score, answer) => {
-      return score + (answer.isCorrect ? (answer.timeLeft * 100) : 0);
+      return score + (answer.isCorrect ? (answer.timeLeft * 50) : 0);
     }, 0);
     
     const extraLifeScore = extraLifeAnswer 
-      ? (extraLifeAnswer.isCorrect ? (extraLifeAnswer.timeLeft * 50) : 0) 
+      ? (extraLifeAnswer.isCorrect ? (extraLifeAnswer.timeLeft * 25) : 0) 
       : 0;
 
     return (
@@ -387,27 +480,45 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
 
             {hasIncorrectAnswers && !extraLifeAnswer && !hasShared && (
               <div className="mt-6 p-4 border-2 border-[#ff8800] rounded-xl bg-black/20">
-                <p className="text-lg text-white mb-3">
-                  Want another chance?
-                </p>
+                {!isConfirmed && (
+                  <>
+                    <p className="text-lg text-white mb-3">
+                      Want another chance?
+                    </p>
+                    {error && (
+                      <div className="text-red-500 text-sm">
+                        {error}
+                      </div>
+                    )}
+                    {tokenBalance && (
+                      <p className="text-sm text-white">
+                        Balance: {formatUnits(tokenBalance.value, tokenBalance.decimals)} {tokenBalance.symbol}
+                      </p>
+                    )}
+                  </>
+                )}
                 <div className="space-y-3">
-                  {tokenBalance && (
-                    <p className="text-sm text-white">
-                      Balance: {formatUnits(tokenBalance.value, tokenBalance.decimals)} {tokenBalance.symbol}
+                  <button
+                    className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full disabled:opacity-50"
+                    onClick={() => !isConnected ? connect({ connector: connectors[0] }) : handleBuyLife()}
+                    disabled={Boolean(isApproving || isConfirming || (!isConnected && address) || isConfirmed)}
+                  >
+                    {isApproving ? 'Processing...' : 
+                     isConfirming ? 'Confirming...' : 
+                     !isConnected ? 'Connect Wallet' : 
+                     isConfirmed ? 'Life Purchased Successfully' :
+                     'Buy Extra Life'}
+                  </button>
+                  {isConfirmed && (
+                    <p className="text-sm text-white text-center">
+                      You can play your life any time until 90 seconds before the daily reset.
                     </p>
                   )}
-                  <button
-                    className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
-                    onClick={handleBuyLife}
-                    disabled={isApproving}
-                  >
-                    {isApproving ? 'Approving...' : 'Buy Extra Life'}
-                  </button>
                 </div>
               </div>
             )}
 
-            {extraLife && !extraLifeAnswer && (
+            {extraLife && !extraLifeAnswer && !showingResults && (
               <div className="mt-6">
                 <button
                   className="border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors w-full"
@@ -500,14 +611,14 @@ export default function Game({ userId, seasonId, username, extraLife = false, on
       </div>
 
       {/* Botones de respuesta */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 pb-12 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
-        <div className="grid grid-cols-2 gap-4 max-w-full mx-2">
+      <div className="absolute bottom-0 left-0 right-0 p-2 pb-8 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
+        <div className="grid grid-cols-2 gap-2 max-w-full mx-1">
           {options.map((option, index) => (
             <button
               key={index}
               onClick={() => handleAnswer(option)}
               disabled={isTransitioning}
-              className={`border-2 border-[#ff8800] text-white px-2 py-1.5 rounded-xl hover:bg-white/5 transition-colors text-sm ${protoMono.className} ${
+              className={`border-2 border-[#ff8800] text-white px-1 py-1 rounded-lg hover:bg-white/5 transition-colors text-sm ${protoMono.className} ${
                 isTransitioning ? 'opacity-50' : ''
               } drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]`}
             >

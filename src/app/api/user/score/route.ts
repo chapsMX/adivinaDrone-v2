@@ -15,13 +15,13 @@ export async function GET(request: Request) {
 
     console.log('Obteniendo score para usuario:', userId);
 
-    // Obtener el ID real de la temporada
+    // Obtener el ID de la temporada
     const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 00';
+      SELECT id FROM seasons WHERE name = 'Season 07';
     `;
 
     if (seasonResult.length === 0) {
-      console.log('No se encontró la temporada Season 00');
+      console.log('No se encontró la temporada Season 07');
       return NextResponse.json({ error: 'Season not found' }, { status: 404 });
     }
 

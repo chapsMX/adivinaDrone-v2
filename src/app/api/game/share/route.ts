@@ -3,8 +3,6 @@ import { neon } from '@neondatabase/serverless';
 
 const sql = neon(process.env.DATABASE_URL!);
 
-const SHARE_BONUS_POINTS = 1000;
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -45,31 +43,17 @@ export async function POST(request: Request) {
 
     const realUserId = userResult[0].id;
 
-    // Actualizar los puntos en season_points
-    const updateResult = await sql`
-      UPDATE season_points 
-      SET total_points = total_points + ${SHARE_BONUS_POINTS},
-          last_updated = CURRENT_TIMESTAMP
-      WHERE user_id = ${realUserId} 
-      AND season_id = ${realSeasonId}
+    // Registrar el share en la base de datos
+    const shareResult = await sql`
+      INSERT INTO shares (user_id, season_id)
+      VALUES (${realUserId}, ${realSeasonId})
       RETURNING *;
     `;
 
-    if (updateResult.length === 0) {
-      // Si no existe el registro, crearlo
-      const insertResult = await sql`
-        INSERT INTO season_points (user_id, season_id, total_points)
-        VALUES (${realUserId}, ${realSeasonId}, ${SHARE_BONUS_POINTS})
-        RETURNING *;
-      `;
-      console.log('Nuevo registro de puntos por compartir:', insertResult);
-      return NextResponse.json({ success: true, points: SHARE_BONUS_POINTS });
-    }
-
-    console.log('Puntos actualizados por compartir:', updateResult);
-    return NextResponse.json({ success: true, points: SHARE_BONUS_POINTS });
+    console.log('Share registrado:', shareResult);
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error al agregar bonus por compartir:', error);
+    console.error('Error al registrar share:', error);
     return NextResponse.json(
       { 
         error: 'Error interno del servidor',

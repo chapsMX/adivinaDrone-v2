@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useConnect } from 'wagmi';
 import { tokenContract, TOKEN_ADDRESS, LIFE_COST } from '@/lib/contracts';
 import { formatUnits } from 'viem';
 import { protoMono } from '@/styles/fonts';
@@ -13,7 +13,8 @@ import Game from '@/components/Game';
 
 export default function ExtraLifePage() {
   const router = useRouter();
-  const { address } = useAccount();
+  const { isConnected, address } = useAccount();
+  const { connect, connectors } = useConnect();
   const { data: tokenBalance } = useBalance({
     address,
     token: TOKEN_ADDRESS,
@@ -26,9 +27,10 @@ export default function ExtraLifePage() {
   const [isGameActive, setIsGameActive] = useState(false);
   const [hasExtraLife, setHasExtraLife] = useState(false);
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const { isLoading, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: transactionHash as `0x${string}`,
   });
+  const isConfirming = Boolean(isLoading);
 
   useEffect(() => {
     const loadContext = async () => {
@@ -47,7 +49,7 @@ export default function ExtraLifePage() {
       }
     };
     loadContext();
-  }, []);
+  }, [context?.user?.fid]);
 
   useEffect(() => {
     const registerExtraLife = async () => {
@@ -67,14 +69,22 @@ export default function ExtraLifePage() {
           const data = await response.json();
           
           if (!response.ok) {
-            throw new Error(data.error || 'Error al registrar la vida extra');
+            throw new Error(data.error || 'Failed to register extra life');
           }
 
           setHasExtraLife(true);
-          setError(null); // Limpiar cualquier error previo
+          setError(null);
         } catch (error) {
-          console.error('Error al registrar la vida extra:', error);
-          setError(error instanceof Error ? error.message : 'Error al registrar la vida extra');
+          console.error('Error registering extra life:', error);
+          if (error instanceof Error) {
+            if (error.message.includes('already have')) {
+              setError('You already have an extra life for today');
+            } else {
+              setError('Failed to register extra life: ' + error.message);
+            }
+          } else {
+            setError('Failed to register extra life. Please try again');
+          }
         }
       }
     };
@@ -84,11 +94,25 @@ export default function ExtraLifePage() {
 
   const handleBuyLife = async () => {
     if (!address) {
-      setError('No hay dirección de billetera conectada');
+      setError('Please connect your wallet to purchase an extra life');
+      return;
+    }
+
+    if (!tokenBalance) {
+      setError('Unable to fetch your token balance. Please try again');
+      return;
+    }
+
+    // Verificar si el usuario tiene suficiente balance
+    if (tokenBalance.value < LIFE_COST) {
+      const required = formatUnits(LIFE_COST, tokenBalance.decimals);
+      const current = formatUnits(tokenBalance.value, tokenBalance.decimals);
+      setError(`Insufficient balance. You need ${required} DRONE, but you have ${current} DRONE`);
       return;
     }
 
     try {
+      console.log('Starting extra life purchase...');
       setIsApproving(true);
       setError(null);
       
@@ -102,8 +126,20 @@ export default function ExtraLifePage() {
         setTransactionHash(transferHash);
       }
     } catch (error) {
-      console.error('Error al comprar vida:', error);
-      setError('Error al procesar la compra. Por favor, intenta de nuevo.');
+      console.error('Error purchasing life:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('insufficient funds')) {
+          setError('Transaction failed: Insufficient funds for gas fee');
+        } else if (error.message.includes('user rejected')) {
+          setError('Transaction cancelled by user');
+        } else if (error.message.includes('nonce')) {
+          setError('Transaction failed: Please try again');
+        } else {
+          setError('Transaction failed: ' + error.message);
+        }
+      } else {
+        setError('Failed to process transaction. Please try again');
+      }
     } finally {
       setIsApproving(false);
     }
@@ -113,7 +149,7 @@ export default function ExtraLifePage() {
     return (
       <Game 
         userId={context.user.fid.toString()} 
-        seasonId="Season 00"
+        seasonId="Season 07"
         username={context.user.username || 'Anónimo'}
         onBack={() => {
           setIsGameActive(false);
@@ -126,7 +162,7 @@ export default function ExtraLifePage() {
 
   return (
     <div className="min-h-screen bg-[#2d283a] text-white font-mono flex flex-col">
-      <header className={`w-full p-3 flex justify-between items-center ${protoMono.className}`}>
+      <header className={`w-full p-3 flex justify-between items-center ${protoMono.className} relative z-50`}>
         <div className="flex items-center">
           <Image
             src="/favicon.png"
@@ -138,13 +174,13 @@ export default function ExtraLifePage() {
         </div>
         <button
           onClick={() => router.push('/')}
-          className="border-2 border-[#ff8800] text-white px-4 py-2 rounded-lg hover:bg-white/5 transition-colors"
+          className="border-2 border-[#ff8800] text-white px-4 py-2 rounded-lg hover:bg-white/5 transition-colors relative z-50"
         >
          Back
         </button>
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-4 -mt-16">
+      <main className="flex-1 flex items-center justify-center p-4 relative z-10">
         <div className="max-w-2xl w-full bg-[#3d3849] border-2 border-[#ff8800] rounded-2xl p-8">
           <div className={`space-y-6 text-center ${protoMono.className}`}>
             <h1 className="text-4xl font-bold mb-4">
@@ -184,13 +220,13 @@ export default function ExtraLifePage() {
                 </Button>
               ) : (
                 <Button
-                  onClick={handleBuyLife}
-                  disabled={isApproving || isConfirming || !address}
+                  onClick={() => !isConnected ? connect({ connector: connectors[0] }) : handleBuyLife()}
+                  disabled={Boolean(isApproving || isConfirming || (!isConnected && address))}
                   className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
                 >
                   {isApproving ? 'Processing...' : 
                    isConfirming ? 'Confirming...' : 
-                   !address ? 'Connect Wallet' : 
+                   !isConnected ? 'Connect Wallet' : 
                    'Buy Extra Life'}
                 </Button>
               )}

@@ -1,0 +1,552 @@
+{
+  "tables": [
+    {
+      "name": "extra_lives",
+      "description": null,
+      "columns": [
+        {
+          "column_name": "season_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "nextval('extra_lives_id_seq'::regclass)"
+        },
+        {
+          "column_name": "transaction_hash",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "column_name": "is_used",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "false"
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "user_id",
+          "references": {
+            "table": "users",
+            "column": "id"
+          }
+        },
+        {
+          "column": "season_id",
+          "references": {
+            "table": "seasons",
+            "column": "id"
+          }
+        }
+      ],
+      "indices": [
+        {
+          "name": "extra_lives_pkey",
+          "definition": "CREATE UNIQUE INDEX extra_lives_pkey ON public.extra_lives USING btree (id)"
+        },
+        {
+          "name": "idx_extra_lives_user",
+          "definition": "CREATE INDEX idx_extra_lives_user ON public.extra_lives USING btree (user_id)"
+        },
+        {
+          "name": "idx_extra_lives_season",
+          "definition": "CREATE INDEX idx_extra_lives_season ON public.extra_lives USING btree (season_id)"
+        }
+      ]
+    },
+    {
+      "name": "images",
+      "description": null,
+      "columns": [
+        {
+          "column_name": "correct_answer",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "option_1",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "option_2",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "option_3",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "column_name": "season_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "nextval('images_id_seq'::regclass)"
+        },
+        {
+          "column_name": "image_number",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "season_id",
+          "references": {
+            "table": "seasons",
+            "column": "id"
+          }
+        }
+      ],
+      "indices": [
+        {
+          "name": "images_pkey",
+          "definition": "CREATE UNIQUE INDEX images_pkey ON public.images USING btree (id)"
+        },
+        {
+          "name": "images_season_id_image_number_key",
+          "definition": "CREATE UNIQUE INDEX images_season_id_image_number_key ON public.images USING btree (season_id, image_number)"
+        },
+        {
+          "name": "idx_images_season",
+          "definition": "CREATE INDEX idx_images_season ON public.images USING btree (season_id)"
+        }
+      ]
+    },
+    {
+      "name": "season_points",
+      "description": null,
+      "columns": [
+        {
+          "column_name": "last_updated",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "column_name": "total_points",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": "0"
+        },
+        {
+          "column_name": "season_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "nextval('season_points_id_seq'::regclass)"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "user_id",
+          "references": {
+            "table": "users",
+            "column": "id"
+          }
+        },
+        {
+          "column": "season_id",
+          "references": {
+            "table": "seasons",
+            "column": "id"
+          }
+        }
+      ],
+      "indices": [
+        {
+          "name": "season_points_pkey",
+          "definition": "CREATE UNIQUE INDEX season_points_pkey ON public.season_points USING btree (id)"
+        },
+        {
+          "name": "season_points_user_id_season_id_key",
+          "definition": "CREATE UNIQUE INDEX season_points_user_id_season_id_key ON public.season_points USING btree (user_id, season_id)"
+        },
+        {
+          "name": "idx_season_points_user",
+          "definition": "CREATE INDEX idx_season_points_user ON public.season_points USING btree (user_id)"
+        },
+        {
+          "name": "idx_season_points_season",
+          "definition": "CREATE INDEX idx_season_points_season ON public.season_points USING btree (season_id)"
+        },
+        {
+          "name": "idx_season_points_user_season",
+          "definition": "CREATE INDEX idx_season_points_user_season ON public.season_points USING btree (user_id, season_id)"
+        }
+      ]
+    },
+    {
+      "name": "seasons",
+      "description": null,
+      "columns": [
+        {
+          "column_name": "is_active",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "false"
+        },
+        {
+          "column_name": "is_early_access",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "false"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "column_name": "start_date",
+          "data_type": "date",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "name",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "nextval('seasons_id_seq'::regclass)"
+        },
+        {
+          "column_name": "end_date",
+          "data_type": "date",
+          "is_nullable": "NO",
+          "column_default": null
+        }
+      ],
+      "foreignKeys": [],
+      "indices": [
+        {
+          "name": "seasons_pkey",
+          "definition": "CREATE UNIQUE INDEX seasons_pkey ON public.seasons USING btree (id)"
+        }
+      ]
+    },
+    {
+      "name": "shares",
+      "description": null,
+      "columns": [
+        {
+          "column_name": "user_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "nextval('shares_id_seq'::regclass)"
+        },
+        {
+          "column_name": "season_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "CURRENT_TIMESTAMP"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "user_id",
+          "references": {
+            "table": "users",
+            "column": "id"
+          }
+        },
+        {
+          "column": "season_id",
+          "references": {
+            "table": "seasons",
+            "column": "id"
+          }
+        }
+      ],
+      "indices": [
+        {
+          "name": "shares_pkey",
+          "definition": "CREATE UNIQUE INDEX shares_pkey ON public.shares USING btree (id)"
+        }
+      ]
+    },
+    {
+      "name": "user_responses",
+      "description": null,
+      "columns": [
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "column_name": "points_earned",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "response_time",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "is_correct",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "selected_answer",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "image_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "nextval('user_responses_id_seq'::regclass)"
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "user_id",
+          "references": {
+            "table": "users",
+            "column": "id"
+          }
+        },
+        {
+          "column": "image_id",
+          "references": {
+            "table": "images",
+            "column": "id"
+          }
+        }
+      ],
+      "indices": [
+        {
+          "name": "user_responses_pkey",
+          "definition": "CREATE UNIQUE INDEX user_responses_pkey ON public.user_responses USING btree (id)"
+        },
+        {
+          "name": "idx_user_responses_user",
+          "definition": "CREATE INDEX idx_user_responses_user ON public.user_responses USING btree (user_id)"
+        },
+        {
+          "name": "idx_user_responses_image",
+          "definition": "CREATE INDEX idx_user_responses_image ON public.user_responses USING btree (image_id)"
+        },
+        {
+          "name": "user_responses_user_image_unique",
+          "definition": "CREATE UNIQUE INDEX user_responses_user_image_unique ON public.user_responses USING btree (user_id, image_id)"
+        }
+      ]
+    },
+    {
+      "name": "user_seen_images",
+      "description": null,
+      "columns": [
+        {
+          "column_name": "seen_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "nextval('user_seen_images_id_seq'::regclass)"
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "image_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "season_id",
+          "data_type": "integer",
+          "is_nullable": "YES",
+          "column_default": null
+        }
+      ],
+      "foreignKeys": [
+        {
+          "column": "user_id",
+          "references": {
+            "table": "users",
+            "column": "id"
+          }
+        },
+        {
+          "column": "image_id",
+          "references": {
+            "table": "images",
+            "column": "id"
+          }
+        },
+        {
+          "column": "season_id",
+          "references": {
+            "table": "seasons",
+            "column": "id"
+          }
+        }
+      ],
+      "indices": [
+        {
+          "name": "user_seen_images_pkey",
+          "definition": "CREATE UNIQUE INDEX user_seen_images_pkey ON public.user_seen_images USING btree (id)"
+        },
+        {
+          "name": "user_seen_images_user_id_image_id_key",
+          "definition": "CREATE UNIQUE INDEX user_seen_images_user_id_image_id_key ON public.user_seen_images USING btree (user_id, image_id)"
+        },
+        {
+          "name": "idx_user_seen_images_user",
+          "definition": "CREATE INDEX idx_user_seen_images_user ON public.user_seen_images USING btree (user_id)"
+        },
+        {
+          "name": "idx_user_seen_images_image",
+          "definition": "CREATE INDEX idx_user_seen_images_image ON public.user_seen_images USING btree (image_id)"
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "description": null,
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "nextval('users_id_seq'::regclass)"
+        },
+        {
+          "column_name": "farcaster_id",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null
+        },
+        {
+          "column_name": "username",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": "CURRENT_TIMESTAMP"
+        },
+        {
+          "column_name": "early_access_requested",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "false"
+        },
+        {
+          "column_name": "is_whitelisted",
+          "data_type": "boolean",
+          "is_nullable": "YES",
+          "column_default": "false"
+        }
+      ],
+      "foreignKeys": [],
+      "indices": [
+        {
+          "name": "users_pkey",
+          "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+        },
+        {
+          "name": "users_farcaster_id_key",
+          "definition": "CREATE UNIQUE INDEX users_farcaster_id_key ON public.users USING btree (farcaster_id)"
+        }
+      ]
+    }
+  ]
+}

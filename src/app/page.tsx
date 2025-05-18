@@ -7,7 +7,7 @@ const frame = {
   version: 'next',
   imageUrl: `${appUrl}/castLoader.png`,
   button: {
-    title: 'Join adivinaDrone',
+    title: '🎮 📸 Play adivinaDrone 📸 🎮',
     action: {
       type: 'launch_frame',
       name: 'adivinaDrone',

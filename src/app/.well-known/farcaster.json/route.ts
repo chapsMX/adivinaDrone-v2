@@ -15,7 +15,7 @@ export async function GET() {
         homeUrl: appUrl,
         // imagenLoader en cast 1200x800 px
         imageUrl: `${appUrl}/castLoader.png`,
-        buttonTitle: '🎮 Play adivinaDrone 🎮',
+        buttonTitle: '🎮 📸 Play adivinaDrone 📸 🎮',
         // imagen en splash
         splashImageUrl: `${appUrl}/splash_200.png`,
         splashBackgroundColor: '#2d283a',

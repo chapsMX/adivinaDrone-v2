@@ -97,6 +97,8 @@ export default function AdivinaDrone() {
         try {
           // Registrar al usuario en la base de datos sin restricciones
           await fetch(`/api/user/status?userId=${context.user.fid}`);
+          // Redirigir al usuario a AdivinaMint después de la validación
+          router.push('/mint');
         } catch (error) {
           console.error('Error registering user:', error);
         }
@@ -104,7 +106,7 @@ export default function AdivinaDrone() {
     };
 
     checkUserStatus();
-  }, [context?.user]);
+  }, [context?.user, router]);
 
   // Verificar si el usuario tiene vida extra al cargar y cuando cambia isGameActive
   const checkExtraLife = async () => {

@@ -17,7 +17,7 @@ export async function generateMetadata({
     version: "next",
     imageUrl: imageUrl.toString(),
     button: {
-      title: "Check your score and mint a free NFT",
+      title: "Check your's & mint an NFT",
       action: {
         type: "launch_frame",
         name: "Launch adivinaDrone",

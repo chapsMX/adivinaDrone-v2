@@ -237,8 +237,7 @@ export default function AdivinaMint() {
                     await sdk.actions.openUrl('https://warpcast.com/~/connect');
                     return;
                   }
-                  const timestamp = Date.now();
-                  const imageId = `${userStats.globalScore}-${timestamp}-${context.user.fid}`;
+                  const imageId = `${userStats.globalScore}-${context.user.fid}`;
                   const text = `My final score & rank in /adivinadrone Season 07:\n🎯 Score: ${userStats.globalScore}\n👑 Rank: #${userStats.rank}\n\nSeason 08 is coming soon! 🚀`;
                   const url = `https://adivinadrone.c13studio.mx/dynamic-image/${imageId}`;
                   await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
@@ -257,7 +256,7 @@ export default function AdivinaMint() {
           </div>
           {/* Winners section */}
           <div className="p-2 border border-[#ff8800] rounded-xl bg-black/20 w-full max-w-2xl mt-0">
-            <div className="space-y-0 max-h-[270px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#ff8800] scrollbar-track-black/20">
+            <div className="space-y-0 max-h-[230px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#ff8800] scrollbar-track-black/20">
               {isLoadingWinners ? (
                 <div className="text-center py-4">
                   <p className={`text-white ${protoMono.className}`}>Loading winners...</p>

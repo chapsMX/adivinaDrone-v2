@@ -19,8 +19,8 @@ export function MintSuccessSheet({
   imageUrl,
 }: MintSuccessSheetProps) {
   const handleShare = useCallback(() => {
-    const text = `I just minted ${name}! 🎉`;
-    const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
+    const text = `I just minted a commemorative NFT for AdivinaDrone Season 7\nSeason 08 is coming soon! 🚀`;
+    const url = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent('https://adivinadrone.c13studio.mx/adivinaDrone_01.jpg')}`;
     sdk.actions.openUrl(url);
   }, [name]);
 

@@ -83,7 +83,7 @@ export const contractConfig = {
  */
 export const embedConfig = {
   version: "next",
-  imageUrl: "/adivinaDrone_01.jpg",
+  imageUrl: "https://adivinadrone.c13studio.mx/adivinaDrone_01.jpg",
   button: {
     title: "Mint",
     action: {

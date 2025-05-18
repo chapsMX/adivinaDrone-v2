@@ -63,7 +63,7 @@ export function CollectButton({ priceEth, onCollect, onError, isMinting }: Colle
         address: contractConfig.address,
         abi: contractConfig.abi,
         functionName: "vectorMint721",
-        args: [BigInt(contractConfig.vectorId), 1n, address],
+        args: [BigInt(contractConfig.vectorId), BigInt(1), address],
         value: parseEther(mintMetadata.priceEth),
         chainId: contractConfig.chain.id,
       });
@@ -86,7 +86,7 @@ export function CollectButton({ priceEth, onCollect, onError, isMinting }: Colle
         {isMinting && (
           <div className="flex justify-between items-center mb-1 text-sm">
             <span className={`text-muted text-sm ${protoMono.className}`}>Cost</span>
-            <span className={`text-foreground font-medium ${protoMono.className}`}>{priceEth} ETH</span>
+            <span className={`text-white font-medium ${protoMono.className}`}>{priceEth} ETH</span>
           </div>
         )}
 

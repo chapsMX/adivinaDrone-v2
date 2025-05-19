@@ -17,11 +17,9 @@ interface Winner {
   score: number;
   pfp_url: string | null;
   fid: string;
-}
-
-interface UserStats {
-  globalScore: number;
   rank: number;
+  total_players: number;
+  percentile: number;
 }
 
 export default function AdivinaMint() {
@@ -30,7 +28,6 @@ export default function AdivinaMint() {
   const [isLoadingWinners, setIsLoadingWinners] = useState(true);
   const [winnersError, setWinnersError] = useState('');
   const [context, setContext] = useState<Context.FrameContext>();
-  const [userStats, setUserStats] = useState<UserStats>({ globalScore: 0, rank: 0 });
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
 
   // Frame context setup
@@ -42,22 +39,10 @@ export default function AdivinaMint() {
       // If we have a user, fetch their stats
       if (context?.user?.fid) {
         try {
-          const scoreResponse = await fetch(`/api/user/score?userId=${context.user.fid}`);
-          const scoreData = await scoreResponse.json();
-          
-          // Calculate rank by comparing with winners
-          const winnersResponse = await fetch('/api/leaderboard/winners');
-          const winnersData = await winnersResponse.json();
-          const rank = winnersData.findIndex((w: Winner) => 
-            w.username === context.user.username
-          ) + 1;
-          
-          setUserStats({
-            globalScore: scoreData.globalScore || 0,
-            rank: rank > 0 ? rank : winnersData.length + 1
-          });
+          // User is authenticated
+          console.log("User authenticated:", context.user.username);
         } catch (error) {
-          console.error('Error fetching user stats:', error);
+          console.error('Error:', error);
         }
       }
 
@@ -117,7 +102,7 @@ export default function AdivinaMint() {
       setWinnersError('');  // Initialize with empty string
       try {
         // Obtener los ganadores de la temporada actual
-        const response = await fetch(`/api/leaderboard/winners?seasonId=Season 07`);
+        const response = await fetch(`/api/leaderboard/ranked-winners?seasonId=Season 07`);
         if (!response.ok) {
           throw new Error('Failed to fetch winners');
         }
@@ -135,6 +120,42 @@ export default function AdivinaMint() {
 
     fetchWinners();
   }, []);
+
+  const handleShare = async () => {
+    if (!context?.user) {
+      await sdk.actions.openUrl('https://warpcast.com/~/connect');
+      return;
+    }
+    try {
+      // Get fresh winners data to ensure accuracy
+      const response = await fetch(`/api/leaderboard/ranked-winners?seasonId=Season 07`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch winners');
+      }
+      const data = await response.json();
+      const players = Array.isArray(data) ? data : [];
+      
+      // Find user's data
+      const userWinner = players.find(w => w.fid === context.user.fid.toString());
+      
+      const imageId = `${userWinner?.score || 0}-${context.user.fid}`;
+      const text = [
+        'My final score & rank in /adivinadrone Season 07:\n',
+        `🎯 Score: ${userWinner?.score || 0}\n`,
+        `👑 Rank: #${userWinner?.rank || 'N/A'}\n`,
+        `🏆 Top ${userWinner?.percentile || 0} percentile\n`,
+        '\n',
+        'Season 08 is coming soon! 🚀'
+      ].join('');
+      const url = `https://adivinadrone.c13studio.mx/dynamic-image/${imageId}`;
+      
+      await sdk.actions.openUrl(
+        `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`
+      );
+    } catch (error) {
+      console.error('Error sharing score:', error);
+    }
+  };
 
   // Loading state
   if (!isSDKLoaded) {
@@ -232,16 +253,7 @@ export default function AdivinaMint() {
                    <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
             <div className="grid grid-cols-2 gap-4 w-full">
               <button 
-                onClick={async () => {
-                  if (!context?.user) {
-                    await sdk.actions.openUrl('https://warpcast.com/~/connect');
-                    return;
-                  }
-                  const imageId = `${userStats.globalScore}-${context.user.fid}`;
-                  const text = `My final score & rank in /adivinadrone Season 07:\n🎯 Score: ${userStats.globalScore}\n👑 Rank: #${userStats.rank}\n\nSeason 08 is coming soon! 🚀`;
-                  const url = `https://adivinadrone.c13studio.mx/dynamic-image/${imageId}`;
-                  await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
-                }}
+                onClick={handleShare}
                 className="bg-[#ff8800] hover:bg-[#ff8800]/80 text-white font-bold py-2 px-4 rounded transition-colors"
               >
                 Share Score
@@ -256,7 +268,7 @@ export default function AdivinaMint() {
           </div>
           {/* Winners section */}
           <div className="p-2 border border-[#ff8800] rounded-xl bg-black/20 w-full max-w-2xl mt-0">
-            <div className="space-y-0 max-h-[230px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#ff8800] scrollbar-track-black/20">
+            <div className="space-y-0 max-h-[220px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#ff8800] scrollbar-track-black/20">
               {isLoadingWinners ? (
                 <div className="text-center py-4">
                   <p className={`text-white ${protoMono.className}`}>Loading winners...</p>
@@ -316,7 +328,7 @@ export default function AdivinaMint() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full overflow-hidden py-2 mb-2">
+      <footer className="w-full overflow-hidden py-2 mb-0">
         <div className="relative flex flex-col gap-0.5">
           <div className="marquee">
             <div className="track">

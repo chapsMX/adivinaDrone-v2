@@ -30,7 +30,6 @@ export async function GET() {
       screenshotUrls: [`${appUrl}/ss_01.jpg`, `${appUrl}/ss_02.jpg`, `${appUrl}/ss_03.jpg`],
       noindex: true,
       requiredChains: ['eip155:8453'],
-      requiredCapabilities: ['actions.openUrl', `actions.addMiniApp`, `actions.composeCast`, `actions.signIn`, `actions.sign_transaction`],  
       },
     };
   

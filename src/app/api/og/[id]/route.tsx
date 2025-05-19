@@ -62,7 +62,7 @@ export async function GET(
 
     const user = userResult[0];
     const { total, below, user_rank } = totalPlayersResult[0];
-    const percentile = Math.round((below / total) * 100);
+    const percentile = Math.round(((total - user_rank) / total) * 100);
     
     const rank = user_rank === 1 ? '🥇' : 
                 user_rank === 2 ? '🥈' : 

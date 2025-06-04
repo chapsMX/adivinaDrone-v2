@@ -1,211 +1,423 @@
-import React from 'react';
-import { createPortal } from 'react-dom';
+"use client";
+
+import { useEffect, useState } from "react";
+import sdk, {
+       type Context,
+} from "@farcaster/frame-sdk";
+// import { useAccount } from 'wagmi';
+import  {signIn, getCsrfToken} from "next-auth/react";
+import { Button } from "../styles/ui/Button";
 import { protoMono } from '@/styles/fonts';
 import Image from 'next/image';
-import { Context } from '@farcaster/frame-sdk';
-import sdk from "@farcaster/frame-sdk";
+import { InstagramIcon, TikTokIcon } from '@/styles/svg/index';
+import '@/styles/footer.css';
+import Game from './Game';
+import Dashboard from './DashboardWinners';
+import Popup from './Popup';
+import { useRouter } from 'next/navigation';
 
-interface DashboardProps {
-  isOpen: boolean;
-  onClose: () => void;
-  userId: string;
-  username: string;
-  context: Context.FrameContext;
-}
+export default function AdivinaDrone() {
+  const router = useRouter();
+  const [isSDKLoaded, setIsSDKLoaded] = useState(false);
+  const [context, setContext] = useState<Context.FrameContext>();
+  const [isGameActive, setIsGameActive] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  // const { address } = useAccount();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [dailyLimitMessage, setDailyLimitMessage] = useState<string | null>(null);
+  const [hasPerfectScore, setHasPerfectScore] = useState(false);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [canBuyExtraLife, setCanBuyExtraLife] = useState(false);
+  const [hasExtraLife, setHasExtraLife] = useState(false);
+  const [isExtraLifeUsed, setIsExtraLifeUsed] = useState(false);
 
-interface TopPlayer {
-  username: string;
-  score: number;
-  pfp_url: string | null;
-}
+  // contexto del frame
+  useEffect(() => {
+    const load = async () => {
+      const context = await sdk.context;
+      console.log('Farcaster context:', context); // Para debug
+      setContext(context);
 
-interface Season {
-  id: number;
-  name: string;
-  start_date: string;
-  end_date: string;
-  is_current: boolean;
-}
+      sdk.on("frameAddRejected", ({ reason }) => {
+        console.log(`Frame add rejected: ${reason}`);
+      });
 
-export default function Dashboard({ isOpen, onClose, userId, username, context }: DashboardProps) {
-  const [stats, setStats] = React.useState({
-    gamesPlayed: 0,
-    totalScore: 0,
-    averageResponseTime: 0
-  });
-  const [topPlayers, setTopPlayers] = React.useState<TopPlayer[]>([]);
-  const [seasons, setSeasons] = React.useState<Season[]>([]);
-  const [selectedSeason, setSelectedSeason] = React.useState<string>('Season 07');
+      sdk.on("frameRemoved", () => {
+        console.log("Frame removed");
+      });
 
-  // Cargar temporadas y establecer la actual
-  React.useEffect(() => {
-    if (isOpen) {
-      fetch('/api/seasons/list')
-        .then(res => res.json())
-        .then(data => {
-          setSeasons(data);
-          const currentSeason = data.find((s: Season) => s.is_current);
-          if (currentSeason) {
-            setSelectedSeason(currentSeason.name);
+      sdk.on("primaryButtonClicked", () => {
+        console.log("primaryButtonClicked");
+      });
+
+      console.log("Calling ready");
+      sdk.actions.ready({});
+    };
+    if (sdk && !isSDKLoaded) {
+      console.log("Calling load");
+      setIsSDKLoaded(true);
+      load();
+      return () => {
+        sdk.removeAllListeners();
+      };
+    }
+  }, [isSDKLoaded]);
+
+  // Inicio de sesión después de que el frame esté cargado
+  useEffect(() => {
+    const signInUser = async () => {
+      // Solo intentar sign in si no hay usuario en el contexto y no estamos ya en proceso de sign in
+      if (isSDKLoaded && !isSigningIn && !context?.user) {
+        setIsSigningIn(true);
+        try {
+          const nonce = await getCsrfToken();
+          if (nonce) {
+            const result = await sdk.actions.signIn({ nonce });
+            await signIn("credentials", {
+              message: result.message,
+              signature: result.signature,
+              redirect: false,
+            });
           }
-        })
-        .catch(err => console.error('Error fetching seasons:', err));
-    }
-  }, [isOpen]);
+        } catch (error) {
+          console.error('Error signing in:', error);
+        } finally {
+          setIsSigningIn(false);
+        }
+      }
+    };
 
-  // Cargar estadísticas y top players cuando cambia la temporada
-  React.useEffect(() => {
-    if (isOpen && selectedSeason) {
-      // Obtener estadísticas del usuario
-      fetch(`/api/user/stats?userId=${userId}&seasonId=${selectedSeason}`)
-        .then(res => res.json())
-        .then(data => setStats(data))
-        .catch(err => console.error('Error fetching user stats:', err));
+    signInUser();
+  }, [isSDKLoaded, context?.user, isSigningIn]);
 
-      // Obtener top jugadores
-      fetch(`/api/leaderboard/top?seasonId=${selectedSeason}`)
-        .then(res => res.json())
-        .then(data => {
-          const players = Array.isArray(data) ? data : [];
-          setTopPlayers(players);
-        })
-        .catch(err => {
-          console.error('Error fetching leaderboard:', err);
-          setTopPlayers([]);
+  useEffect(() => {
+    const checkUserStatus = async () => {
+      if (context?.user) {
+        try {
+          // Registrar al usuario en la base de datos sin restricciones
+          await fetch(`/api/user/status?userId=${context.user.fid}`);
+        } catch (error) {
+          console.error('Error registering user:', error);
+        }
+      }
+    };
+    checkUserStatus();
+  }, [context?.user, router]);
+
+  // Verificar si el usuario tiene vida extra al cargar y cuando cambia isGameActive
+  const checkExtraLife = async () => {
+    if (context?.user) {
+      try {
+        const response = await fetch(`/api/extra-life/check?userId=${context.user.fid}`);
+        const data = await response.json();
+        
+        setHasExtraLife(data.hasExtraLife);
+        setIsExtraLifeUsed(data.isUsed);
+        
+        console.log('Extra life status:', {
+          hasExtraLife: data.hasExtraLife,
+          isUsed: data.isUsed
         });
+      } catch (error) {
+        console.error('Error checking extra life:', error);
+        setHasExtraLife(false);
+        setIsExtraLifeUsed(false);
+      }
     }
-  }, [isOpen, userId, selectedSeason]);
+  };
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    checkExtraLife();
+  }, [context?.user, isGameActive]);
 
-  return createPortal(
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
-      <div className="bg-[#3d3849] border border-[#ff8800] rounded-2xl p-6 max-w-2xl w-full mx-4 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-white hover:text-[#ff8800] transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+  const handleStartGame = async () => {
+    if (!context?.user) {
+      setIsConnecting(true);
+      try {
+        await sdk.actions.openUrl('https://farcaster.xyz/~/connect');
+      } catch (error) {
+        console.error('Error connecting wallet:', error);
+        alert('Error connecting wallet. Please try again.');
+      } finally {
+        setIsConnecting(false);
+      }
+      return;
+    }
 
-        <div className="flex justify-between items-center mb-6">
-          <h2 className={`text-3xl font-bold text-white ${protoMono.className}`}>{selectedSeason}</h2>
-          <select
-            value={selectedSeason}
-            onChange={(e) => setSelectedSeason(e.target.value)}
-            className={`bg-[#2d283a] border border-[#ff8800] text-white text-sm px-4 py-2 rounded-lg ${protoMono.className}`}
-          >
-            {seasons.map((season) => (
-              <option key={season.id} value={season.name}>
-                {season.name} {season.is_current ? '(Current)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
+    // Si tiene vida extra sin usar, redirigir a la página de vida extra
+    if (hasExtraLife && !isExtraLifeUsed) {
+      router.push('/extralife');
+      return;
+    }
 
-        <div className="space-y-6">
-          <div className="p-3 border border-[#ff8800] rounded-xl bg-black/20">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="relative w-12 h-12">
-                <Image
-                  src={context.user.pfpUrl || '/default-avatar.png'}
-                  alt="Profile"
-                  fill
-                  className="rounded-full border-2 border-[#ff8800] object-cover"
-                  unoptimized
-                />
-              </div>
-              <p className={`text-xl text-white ${protoMono.className}`}>{username}</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className={`text-white ${protoMono.className}`}>Games played:</span>
-                <span className={`text-white ${protoMono.className}`}>{stats.gamesPlayed}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className={`text-white ${protoMono.className}`}>Global Score:</span>
-                <span className={`text-white ${protoMono.className}`}>{stats.totalScore}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className={`text-white ${protoMono.className}`}>Average response:</span>
-                <span className={`text-white ${protoMono.className}`}>{stats.averageResponseTime}s</span>
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    // Primero registrar el share en la base de datos
-                    console.log('Registrando share desde Dashboard:', { userId, seasonId: selectedSeason });
-                    const shareResponse = await fetch("/api/game/share", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        userId,
-                        seasonId: selectedSeason
-                      }),
-                    });
+    // Si puede comprar vida extra, redirigir a la página de compra
+    if (canBuyExtraLife) {
+      router.push('/extralife');
+      return;
+    }
 
-                    const shareData = await shareResponse.json();
-                    console.log('Respuesta del share:', shareData);
+    // Verificar si el usuario puede jugar normalmente
+    try {
+      const response = await fetch(`/api/game?userId=${context.user.fid}&seasonId=Season 07&extraLife=false&username=${context.user.username}`);
+      const data = await response.json();
+      
+      if (response.status === 403) {
+        setDailyLimitMessage(data.error);
+        setHasPerfectScore(data.perfectScore || false);
+        // Solo permitimos comprar vida extra si no tiene score perfecto y no ha usado una vida extra hoy
+        setCanBuyExtraLife(!data.perfectScore && !hasExtraLife);
+        setIsPopupOpen(true);
+        return;
+      }
+      
+      setIsGameActive(true);
+    } catch (error) {
+      console.error('Error checking game availability:', error);
+      alert('Error checking game availability. Please try again.');
+    }
+  };
 
-                    if (!shareResponse.ok) {
-                      throw new Error(shareData.error || 'Failed to register share');
-                    }
-
-                    // Una vez registrado el share, abrir el composer
-                    const text = `My /adivinadrone stats:\nGames Played: ${stats.gamesPlayed}\nGlobal Score: ${stats.totalScore}\nAverage Response: ${stats.averageResponseTime}s\nCan you beat my score? 🚀`;
-                    const url = "https://adivinadrone.c13studio.mx";
-                    
-                    // Pequeño delay para asegurar que el share se registre
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    await sdk.actions.openUrl(`https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
-                  } catch (error) {
-                    console.error('Error al registrar share:', error);
-                    if (error instanceof Error) {
-                      alert('Error al compartir: ' + error.message);
-                    } else {
-                      alert('Error al compartir. Por favor, intenta de nuevo.');
-                    }
-                  }
-                }}
-                className={`w-full mt-4 border-2 border-[#ff8800] text-white px-6 py-2 rounded-lg hover:bg-white/5 transition-colors ${protoMono.className}`}
-              >
-                Share Stats
-              </button>
-            </div>
-          </div>
-
-          <div className="p-2 border border-[#ff8800] rounded-xl bg-black/20">
-            <h3 className={`text-lg font-bold text-white mb-2 ${protoMono.className}`}>Top Players</h3>
-            <div className="space-y-0">
-              {Array.isArray(topPlayers) && topPlayers.map((player, index) => (
-                <div 
-                  key={`player-${index}`} 
-                  className={`flex items-center gap-2 p-2 ${index % 2 === 0 ? 'bg-black/20' : 'bg-black/10'}`}
-                >
-                  <span className={`text-base font-bold text-white ${protoMono.className}`}>#{index + 1}</span>
-                  <div className="relative w-6 h-6">
-                    <Image
-                      src={player.pfp_url || '/default-avatar.png'}
-                      alt={player.username || 'Anónimo'}
-                      fill
-                      className="rounded-full border border-[#ff8800] object-cover"
-                      unoptimized
-                    />
-                  </div>
-                  <span className={`flex-1 text-sm text-white ${protoMono.className}`}>{player.username || 'Anónimo'}</span>
-                  <span className={`font-bold text-sm text-white ${protoMono.className}`}>{player.score}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+  // carga el componente
+  if (!isSDKLoaded) {
+    console.log('SDK not loaded yet');
+    return (
+      <div className="min-h-screen bg-[#2d283a] text-white font-mono flex items-center justify-center">
+        <div className="text-xl">Loading...</div>
       </div>
-    </div>,
-    document.body
+    );
+  }
+
+  console.log('Current states:', {
+    isSDKLoaded,
+    context: context?.user ? 'User logged in' : 'No user',
+    isGameActive
+  });
+
+  const handleShareStats = async () => {
+    try {
+      const text = `Im ready to play season 08 of /adivinadrone by @chaps
+      ♻️ Leaderboard updated daily
+      🏆 3 winners per season
+      💸 Up to 350 USDC in prizes
+      ➕ Add the Mini App & turn notis on 🔔`;
+      const url = "https://adivinadrone.c13studio.mx";
+      await sdk.actions.openUrl(`https://farcaster.xyz/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
+    } catch (error) {
+      console.error('Error sharing stats:', error);
+    }
+  };
+
+  // Si no hay contexto de usuario, mostrar la pantalla de conexión
+  if (!context?.user) {
+    return (
+      <div className="min-h-screen bg-[#2d283a] text-white font-mono flex flex-col">
+        <header className={`w-full p-3 flex justify-between items-center ${protoMono.className}`}>
+          <div className="flex items-center">
+            <Image
+              src="/favicon.png"
+              alt="adivinaDrone Logo"
+              width={48}
+              height={48}
+              priority
+            />
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center p-0">
+          <div className="flex flex-col items-center gap-4 w-[95%] max-w-2xl">
+            <h1 className={`text-4xl font-bold ${protoMono.className}`}>
+              adivinaDrone
+              <hr />
+              <center>Season 08</center>
+            </h1>
+            <Button
+              onClick={handleStartGame}
+              disabled={isConnecting}
+              className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+            >
+              {isConnecting ? 'Connecting...' : 'Connect your wallet to start playing'}
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Si hay contexto de usuario, mostrar la pantalla principal
+  return (
+    <div className="min-h-screen bg-[#2d283a] text-white font-mono flex flex-col">
+      <header className={`w-full mb-0 p-3 flex justify-between items-center ${protoMono.className}`}>
+        <div className="flex items-center">
+          <Image
+            src="/favicon.png"
+            alt="adivinaDrone Logo"
+            width={48}
+            height={48}
+            priority
+          />
+        </div>
+        {context?.user && (
+          <button
+            type="button"
+            onClick={() => {
+              console.log('Click en el botón de menú');
+              setIsDashboardOpen(true);
+            }}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          >
+            <div className="flex flex-col gap-1.5">
+              <div className="w-5 h-0.5 bg-orange-500"></div>
+              <div className="w-5 h-0.5 bg-orange-500"></div>
+              <div className="w-5 h-0.5 bg-orange-500"></div>
+            </div>
+          </button>
+        )}
+      </header>
+
+      {isDashboardOpen && context?.user && (
+        <Dashboard
+          isOpen={isDashboardOpen}
+          onClose={() => {
+            console.log('Cerrando dashboard');
+            setIsDashboardOpen(false);
+          }}
+          userId={context.user.fid.toString()}
+          username={context.user.username || 'Anónimo'}
+          context={context}
+        />
+      )}
+
+      <main className="min-w-screen flex-1 flex items-start justify-center p-0">
+        <div className="flex flex-col items-center gap-1 w-[95%]">
+          {isGameActive && context?.user ? (
+            <Game 
+              userId={context.user.fid.toString()} 
+              seasonId="Season 07"
+              username={context.user.username || 'Anónimo'}
+              onBack={() => {
+                setIsGameActive(false);
+                setDailyLimitMessage(null);
+              }}
+            />
+          ) : (
+            <>
+              <div className="flex flex-col items-center gap-2 mb-0">
+                <h1 className={`text-4xl font-bold ${protoMono.className}`}>
+                  adivinaDrone
+                  <hr />
+                  <center>Season 08</center>
+                </h1>
+              </div>
+              <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
+                <Button
+                  onClick={handleShareStats}
+                  className="bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold p-2 max-w-2xl w-full rounded-xl transition-colors disabled:opacity-50"
+                >
+                  Share Mini App for a chance to win 10M $DRONE
+                </Button>
+
+             {/* <Button
+                  onClick={handleStartGame}
+                  className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {hasExtraLife && !isExtraLifeUsed ? 'Play Your Extra Life' : 
+                   canBuyExtraLife ? 'Buy Extra Life' : 
+                   'Play Now'}
+                </Button> */}
+              </div>
+              <hr></hr>
+              <hr></hr>
+              <div className="relative border-2 border-[#ff8800] bg-[#3d3849] rounded-2xl p-2 max-w-2xl w-full overflow-hidden">
+                <div className="absolute inset-0 z-0">
+                  <Image
+                    src="/mapaTrans.png"
+                    alt="Background Map"
+                    fill
+                    priority
+                    sizes="100vw"
+                    style={{ objectFit: 'fill' }}
+                    className="opacity-80"
+                  />
+                </div>
+                <div className={`relative z-10 text-center space-y-3 ${protoMono.className}`}>
+                  <div className="flex flex-col mb-0">
+                  <h2 className={`text-3xl font-semibold opacity-90 ${protoMono.className}`}>Hello&nbsp;{context?.user?.username || 'adivinaDrone'}</h2> 
+                  <h2 className={`text-2xl font-semibold opacity-90 ${protoMono.className}`}>How to play:</h2>
+                  </div>
+                  <div className="mt-2 mb-0">
+                    <p className="text-sm leading-relaxed text-left mb-0">
+                      * Guess the location of 3 photos a day<br />
+                      * Select location as fast as possible<br />
+                      * Faster answers = more points<br />
+                      * Leaderboard updated daily<br />
+                      * 3 winners per season<br />
+                      * Up to 150 USDC in prizes<br />
+                      * Updated daily at 18.00 CST<br />
+                      * Add the Mini App and turn notis on<br />
+                      <br />
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <hr></hr>
+              <hr></hr>
+               <div className={`flex flex-col items-center gap-2 w-full max-w-2xl ${protoMono.className}`}>
+                <div className="flex gap-4 w-full">
+                  <Button
+                    onClick={() => window.open('https://www.instagram.com/c13studio/', '_blank')}
+                    className="flex-1"
+                  >
+                    <InstagramIcon />
+                  </Button>
+
+                  <Button
+                    onClick={() => window.open('https://www.tiktok.com/@c13studio', '_blank')}
+                    className="flex-1"
+                  >
+                    <TikTokIcon />
+                  </Button>
+                </div>
+              </div> 
+            </>
+          )}
+        </div>
+      </main>
+
+      <footer className={`w-full overflow-hidden py-2 mb-3 ${isGameActive ? 'hidden' : ''}`}>
+        <div className="relative flex flex-col gap-0.5">
+          <div className="marquee">
+            <div className="track">
+              <span className={`text-white text-xl ${protoMono.className}`}>
+                c13studio • c13studio • c13studio • c13studio • c13studio • c13studio • c13studio • c13studio • c13studio • c13studio •&nbsp;
+              </span>
+              <span className={`text-white text-xl ${protoMono.className}`}>
+                c13studio • c13studio • c13studio • c13studio • c13studio • c13studio • c13studio • c13studio • c13studio • c13studio •&nbsp;
+              </span>
+            </div>
+          </div>
+          <div className="marquee">
+            <div className="track-reverse">
+              <span className={`text-white text-xl ${protoMono.className}`}>
+                adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone •&nbsp;
+              </span>
+              <span className={`text-white text-xl ${protoMono.className}`}>
+                adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone • adivinaDrone •&nbsp;
+              </span>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* Popup para mensajes de límite diario */}
+      <Popup
+        isOpen={isPopupOpen}
+        message={hasPerfectScore ? "Congratulations! You got a perfect score 3/3. Come back tomorrow for 3 new photos." : (dailyLimitMessage || '')}
+        onClose={() => {
+          setIsPopupOpen(false);
+          setHasPerfectScore(false);
+        }}
+      />
+    </div>
   );
-} 
+}

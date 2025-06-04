@@ -5,3 +5,5 @@ node_modules/
 .next/
 src/db/
 public/images/
+db-structure.json
+schema.sql

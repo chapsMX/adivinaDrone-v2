@@ -1,58 +1,41 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { UserService } from '@/lib/database';
+import { validateFarcasterId } from '@/lib/validations';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { userId, username } = body;
 
-    console.log('Early access request received:', { userId, username });
+    console.log('Early access requested for:', { userId, username });
 
-    if (!userId) {
-      console.log('No userId provided');
+    // Validar userId
+    const validation = validateFarcasterId(userId || '');
+    if (!validation.isValid) {
+      console.log('Validación fallida:', validation.errors);
       return NextResponse.json(
-        { error: 'Missing userId parameter' },
+        { error: validation.errors[0].message },
         { status: 400 }
       );
     }
 
-    // Obtener el ID de la temporada actual
-    const seasonResult = await sql`
-      SELECT id FROM seasons 
-      WHERE name = 'Season 07';
-    `;
+    // Mantener compatibilidad pero sin activar early access
+    const user = await UserService.createOrUpdate({
+      farcaster_id: userId,
+      username,
+      early_access_requested: false,  // Siempre false
+      is_whitelisted: false          // Siempre false
+    });
 
-    console.log('Season check result:', seasonResult);
+    console.log('Usuario actualizado:', user);
 
-    if (seasonResult.length === 0 || !seasonResult[0].is_early_access) {
-      console.log('Early access not available');
-      return NextResponse.json(
-        { error: 'Early access is not available' },
-        { status: 403 }
-      );
-    }
-
-    // Actualizar o insertar el usuario
-    const updateResult = await sql`
-      INSERT INTO users (farcaster_id, username, early_access_requested)
-      VALUES (${userId}, ${username}, true)
-      ON CONFLICT (farcaster_id) 
-      DO UPDATE SET 
-        early_access_requested = true,
-        username = COALESCE(EXCLUDED.username, users.username)
-      RETURNING *;
-    `;
-
-    console.log('User update result:', updateResult);
-
-    return NextResponse.json({ 
-      success: true,
-      user: updateResult[0]
+    // Retornar respuesta exitosa pero sin activar early access
+    return NextResponse.json({
+      early_access_requested: false,
+      is_whitelisted: false
     });
   } catch (error) {
-    console.error('Error requesting early access:', error);
+    console.error('Error procesando early access:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

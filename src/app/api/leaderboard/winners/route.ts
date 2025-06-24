@@ -1,102 +1,96 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { 
+  SeasonService,
+  SeasonPointsService
+} from '@/lib/database';
+import { validatePagination } from '@/lib/validations';
 
-const sql = neon(process.env.DATABASE_URL!);
-const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
-
-interface NeynarUser {
-  fid: number;
-  username: string;
-  display_name: string;
-  pfp_url: string;
-}
-
-interface NeynarResponse {
-  users: NeynarUser[];
-  next: {
-    cursor: string | null;
-  };
-}
-
-async function fetchUserProfiles(fids: string[]): Promise<NeynarUser[]> {
+export async function GET(request: Request) {
   try {
-    const BATCH_SIZE = 100;
-    const allProfiles: NeynarUser[] = [];
-    
-    // Procesar los fids en lotes de 100
-    for (let i = 0; i < fids.length; i += BATCH_SIZE) {
-      const batch = fids.slice(i, i + BATCH_SIZE);
-      const response = await fetch(
-        `https://api.neynar.com/v2/farcaster/user/bulk?fids=${batch.join(',')}`,
-        {
-          headers: {
-            'accept': 'application/json',
-            'api_key': NEYNAR_API_KEY || '',
-          }
-        }
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    console.log('Winners leaderboard requested:', { limit, offset });
+
+    // Validar paginación
+    const paginationValidation = validatePagination(limit, offset);
+    if (!paginationValidation.isValid) {
+      console.log('Validación de paginación fallida:', paginationValidation.errors);
+      return NextResponse.json(
+        { error: paginationValidation.errors[0].message },
+        { status: 400 }
       );
-      
-      if (!response.ok) {
-        console.error('Neynar API error:', response.status, response.statusText);
-        continue; // Continuar con el siguiente lote en lugar de fallar completamente
-      }
-      
-      const data = await response.json() as NeynarResponse;
-      allProfiles.push(...data.users);
-      
-      // Esperar un poco entre llamadas para no sobrecargar la API
-      if (i + BATCH_SIZE < fids.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-    
-    return allProfiles;
-  } catch (error) {
-    console.error('Error fetching user profiles:', error);
-    return [];
-  }
-}
-
-export async function GET() {
-  try {
-    // Get winners using the working query
-    const winners = await sql`
-      SELECT 
-        u.id as user_id,
-        u.farcaster_id,
-        u.username,
-        SUM(ur.points_earned) as total_points
-      FROM users u
-      JOIN user_responses ur ON ur.user_id = u.id
-      WHERE ur.id BETWEEN 1824 AND 8336
-      GROUP BY u.id, u.farcaster_id, u.username
-      HAVING SUM(ur.points_earned) > 0
-      ORDER BY total_points DESC;
-    `;
-
-    if (!winners.length) {
-      return NextResponse.json([]);
     }
 
-    // Get Neynar profiles for additional info
-    const fids = winners.map(w => w.farcaster_id);
-    const userProfiles = await fetchUserProfiles(fids);
-
-    const results = winners.map(winner => {
-      const profile = userProfiles.find(p => String(p.fid) === winner.farcaster_id);
-      return {
-        username: profile?.display_name || profile?.username || winner.username || 'Anónimo',
-        score: winner.total_points,
-        pfp_url: profile?.pfp_url || null
-      };
+    // Obtener temporadas completadas
+    const completedSeasons = await SeasonService.getAll({
+      limit: 100,
+      offset: 0
     });
 
-    return NextResponse.json(results);
-  } catch (error) {
-    console.error('Error fetching winners:', error);
+    // Filtrar temporadas completadas manualmente
+    const now = new Date();
+    const finishedSeasons = completedSeasons.filter(season => 
+      !season.is_active && season.end_date < now
+    ).sort((a, b) => b.end_date.getTime() - a.end_date.getTime());
+
+    if (finishedSeasons.length === 0) {
+      console.log('No hay temporadas completadas');
+      return NextResponse.json({ 
+        winners: [],
+        message: 'Aún no hay temporadas finalizadas',
+        nextSeason: {
+          name: 'Season 07',
+          startDate: new Date('2024-07-01').toISOString(),
+          message: 'La próxima temporada comienza el 1 de Julio'
+        }
+      });
+    }
+
+    // Obtener ganadores de cada temporada
+    const winners = await Promise.all(
+      finishedSeasons.map(async (season) => {
+        const leaderboard = await SeasonPointsService.getLeaderboard(season.id, 1);
+        const status = await SeasonService.getSeasonStatus(season.id);
+        return {
+          season: season.name,
+          winner: leaderboard[0] || null,
+          status: status.status,
+          message: status.message,
+          startDate: season.start_date,
+          endDate: season.end_date
+        };
+      })
+    );
+
+    // Filtrar temporadas sin ganadores y aplicar paginación
+    const validWinners = winners
+      .filter(w => w.winner !== null)
+      .slice(offset, offset + limit);
+
+    console.log('Winners obtenidos:', validWinners.length);
+
+    // Obtener información de la próxima temporada
+    const nextSeasonNumber = String(
+      Math.max(...finishedSeasons.map(s => 
+        parseInt(s.name.split(' ')[1])
+      )) + 1
+    ).padStart(2, '0');
+
     return NextResponse.json({ 
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+      winners: validWinners,
+      nextSeason: {
+        name: `Season ${nextSeasonNumber}`,
+        startDate: new Date('2024-07-01').toISOString(),
+        message: 'La próxima temporada comienza el 1 de Julio'
+      }
+    });
+  } catch (error) {
+    console.error('Error obteniendo winners:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 } 

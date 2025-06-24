@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
-
-interface Image {
-  id: number;
-  image_number: number;
-  correct_answer: string;
-  option_1: string;
-  option_2: string;
-  option_3: string;
-}
+import { 
+  UserService,
+  SeasonService,
+  ImageService,
+  GameService
+} from '@/lib/database';
+import { 
+  validateGameRequest,
+  sanitizeUsername,
+  sanitizeString
+} from '@/lib/validations';
+import type { CreateUserData } from '@/lib/types';
 
 export async function GET(request: Request) {
   try {
@@ -20,70 +20,57 @@ export async function GET(request: Request) {
     const username = searchParams.get('username');
     const extraLife = searchParams.get('extraLife') === 'true';
 
-    if (!userId || !seasonId || !username) {
+    // Validar y sanitizar inputs
+    const sanitizedUsername = username ? sanitizeUsername(username) : undefined;
+    const sanitizedSeasonId = seasonId ? sanitizeString(seasonId) : undefined;
+
+    const validation = validateGameRequest(
+      userId || '', 
+      sanitizedUsername, 
+      sanitizedSeasonId, 
+      extraLife
+    );
+    if (!validation.isValid) {
+      console.log('Validación fallida:', validation.errors);
       return NextResponse.json(
-        { error: 'Missing required parameters' },
+        { error: validation.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Missing userId parameter' },
         { status: 400 }
       );
     }
 
     console.log('Buscando imágenes para:', { userId, seasonId });
 
-    // Verificar el límite diario de respuestas
-    const dailyAnswers = await sql`
-      SELECT 
-        COUNT(*) as total_count,
-        SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_count
-      FROM user_responses ur
-      JOIN images i ON ur.image_id = i.id
-      WHERE ur.user_id IN (
-        SELECT id FROM users WHERE farcaster_id = ${userId}
-      )
-      AND i.season_id = (
-        SELECT id FROM seasons WHERE name = ${seasonId}
-      )
-      AND DATE(ur.created_at) = CURRENT_DATE;
-    `;
+    // Crear o actualizar usuario primero
+    const userData: CreateUserData = {
+      farcaster_id: userId,
+      username: sanitizedUsername,
+      early_access_requested: false,
+      is_whitelisted: false
+    };
+    const user = await UserService.createOrUpdate(userData);
 
-    console.log('Respuestas hoy en temporada', seasonId, ':', {
-      total: dailyAnswers[0].total_count,
-      correctas: dailyAnswers[0].correct_count
-    });
-
-    const totalResponses = parseInt(dailyAnswers[0].total_count) || 0;
-    const correctResponses = parseInt(dailyAnswers[0].correct_count) || 0;
-
-    if (!extraLife && totalResponses >= 3) {
-      // Si todas las respuestas son correctas, no ofrecer vida extra
-      if (correctResponses === 3) {
-        return NextResponse.json({
-          error: "Congratulations! You've completed today's challenge perfectly.<br />Come back tomorrow for new images!",
-          dailyLimit: true,
-          perfectScore: true
-        }, { status: 403 });
-      }
-      
-      return NextResponse.json({
-        error: "Daily limit reached.<br />You can buy an extra life!",
-        dailyLimit: true,
-        perfectScore: false
-      }, { status: 403 });
+    // Verificar si el usuario puede jugar
+    const gameStatus = await GameService.canPlayGame(user.id, extraLife);
+    if (!gameStatus.canPlay) {
+      const response = {
+        error: gameStatus.reason,
+        dailyLimit: gameStatus.dailyLimit,
+        extraLifeUsed: gameStatus.extraLifeUsed,
+        seasonStatus: gameStatus.seasonStatus
+      };
+      return NextResponse.json(response, { status: 403 });
     }
 
-    if (extraLife && totalResponses >= 4) {
-      return NextResponse.json({
-        error: "You've used all your attempts today, including extra life.<br />Come back tomorrow!",
-        dailyLimit: true,
-        extraLifeUsed: true
-      }, { status: 403 });
-    }
-
-    // Primero, obtener el ID real de la temporada
-    const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = ${seasonId};
-    `;
-
-    if (seasonResult.length === 0) {
+    // Obtener la temporada
+    const season = await SeasonService.findByName(seasonId!);
+    if (!season) {
       console.log('No se encontró la temporada:', seasonId);
       return NextResponse.json(
         { error: 'Season not found' },
@@ -91,30 +78,9 @@ export async function GET(request: Request) {
       );
     }
 
-    const realSeasonId = seasonResult[0].id;
-    console.log('ID real de la temporada:', realSeasonId);
-
-    // Verificar si el usuario existe y crearlo si no existe
-    const userResult = await sql`
-      INSERT INTO users (farcaster_id, username)
-      VALUES (${userId}, ${username})
-      ON CONFLICT (farcaster_id) DO UPDATE 
-      SET username = COALESCE(EXCLUDED.username, users.username)
-      RETURNING id;
-    `;
-
-    const realUserId = userResult[0].id;
-    console.log('ID real del usuario:', realUserId);
-
-    // Verificar si hay imágenes en la temporada
-    const totalImages = await sql`
-      SELECT COUNT(*) as count
-      FROM images
-      WHERE season_id = ${realSeasonId};
-    `;
-    console.log('Total de imágenes en la temporada:', totalImages[0].count);
-
-    if (totalImages[0].count === 0) {
+    // Verificar si hay imágenes disponibles
+    const imageCount = await ImageService.getCountBySeason(season.id);
+    if (imageCount === 0) {
       console.log('No hay imágenes en la temporada');
       return NextResponse.json(
         { error: 'No images available in this season' },
@@ -122,51 +88,27 @@ export async function GET(request: Request) {
       );
     }
 
-    // Obtener imágenes aleatorias (3 para juego normal, 1 para vida extra)
+    // Obtener imágenes aleatorias
     const limit = extraLife ? 1 : 3;
-    const result = await sql`
-      SELECT 
-        i.id,
-        i.image_number,
-        i.correct_answer,
-        i.option_1,
-        i.option_2,
-        i.option_3
-      FROM images i
-      WHERE i.season_id = ${realSeasonId}
-      AND i.id NOT IN (
-        SELECT image_id 
-        FROM user_seen_images 
-        WHERE user_id = ${realUserId}
-        AND season_id = ${realSeasonId}
-      )
-      ORDER BY RANDOM()
-      LIMIT ${limit};
-    ` as unknown as Image[];
+    const images = await ImageService.getRandomForUser(user.id, season.id, limit);
 
-    console.log('Imágenes encontradas:', result.length);
+    console.log('Imágenes encontradas:', images.length);
 
-    if (result.length === 0) {
+    if (images.length === 0) {
       console.log('No se encontraron imágenes aleatorias');
       return NextResponse.json(
         { 
           error: 'No images available in this season',
           debug: {
-            totalImages: totalImages[0].count,
-            realSeasonId
+            totalImages: imageCount,
+            seasonId: season.id
           }
         },
         { status: 404 }
       );
     }
 
-    // Formatear la respuesta con las rutas de las imágenes
-    const formattedResult = result.map(row => ({
-      ...row,
-      image_path: `/images/seasons/${realSeasonId}/adivinadrone_${String(row.image_number).padStart(3, '0')}.jpg`
-    }));
-
-    return NextResponse.json({ images: formattedResult });
+    return NextResponse.json({ images });
   } catch (error) {
     console.error('Error detallado:', error);
     return NextResponse.json(

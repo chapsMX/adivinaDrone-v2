@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { UserService } from '@/lib/database';
+import { validateFarcasterId } from '@/lib/validations';
 
 export async function GET(request: Request) {
   try {
@@ -10,23 +9,19 @@ export async function GET(request: Request) {
 
     console.log('Status check requested for user:', userId);
 
-    if (!userId) {
-      console.log('No userId provided');
+    const validation = validateFarcasterId(userId || '');
+    if (!validation.isValid) {
+      console.log('Validación fallida:', validation.errors);
       return NextResponse.json(
-        { error: 'Missing userId parameter' },
+        { error: validation.errors[0].message },
         { status: 400 }
       );
     }
 
-    const result = await sql`
-      SELECT early_access_requested, is_whitelisted
-      FROM users
-      WHERE farcaster_id = ${userId};
-    `;
+    const user = await UserService.findByFarcasterId(userId!);
+    console.log('Database query result:', user);
 
-    console.log('Database query result:', result);
-
-    if (result.length === 0) {
+    if (!user) {
       console.log('No user found, returning default values');
       return NextResponse.json({
         early_access_requested: false,
@@ -34,8 +29,15 @@ export async function GET(request: Request) {
       });
     }
 
-    console.log('Returning user status:', result[0]);
-    return NextResponse.json(result[0]);
+    console.log('Returning user status:', {
+      early_access_requested: user.early_access_requested,
+      is_whitelisted: user.is_whitelisted
+    });
+
+    return NextResponse.json({
+      early_access_requested: user.early_access_requested,
+      is_whitelisted: user.is_whitelisted
+    });
   } catch (error) {
     console.error('Error checking user status:', error);
     return NextResponse.json(

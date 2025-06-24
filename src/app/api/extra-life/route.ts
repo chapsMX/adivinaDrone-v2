@@ -1,72 +1,135 @@
 import { NextResponse } from 'next/server';
-import sql from '../../../lib/db';
+import { 
+  UserService,
+  SeasonService,
+  ExtraLifeService
+} from '@/lib/database';
+import { 
+  validateFarcasterId,
+  validateTransactionHash
+} from '@/lib/validations';
 
 export async function POST(request: Request) {
   try {
-    const { userId, transactionHash } = await request.json();
+    const body = await request.json();
+    const { userId, transactionHash } = body;
 
-    if (!userId || !transactionHash) {
+    console.log('Extra life requested:', { userId, transactionHash });
+
+    // Validar userId
+    const userValidation = validateFarcasterId(userId || '');
+    if (!userValidation.isValid) {
+      console.log('Validación de usuario fallida:', userValidation.errors);
       return NextResponse.json(
-        { error: 'Missing required parameters' },
+        { error: userValidation.errors[0].message },
         { status: 400 }
       );
     }
 
-    // Verificar si el usuario ya tiene una vida extra para hoy
-    const existingExtraLife = await sql`
-      SELECT id FROM extra_lives
-      WHERE user_id IN (
-        SELECT id FROM users WHERE farcaster_id = ${userId}
-      )
-      AND DATE(created_at) = CURRENT_DATE;
-    `;
-
-    if (existingExtraLife.length > 0) {
+    // Validar hash de transacción
+    const hashValidation = validateTransactionHash(transactionHash || '');
+    if (!hashValidation.isValid) {
+      console.log('Validación de transacción fallida:', hashValidation.errors);
       return NextResponse.json(
-        { error: 'Ya tienes una vida extra para hoy' },
+        { error: hashValidation.errors[0].message },
         { status: 400 }
       );
     }
 
-    // Obtener el ID real del usuario
-    const userResult = await sql`
-      SELECT id FROM users WHERE farcaster_id = ${userId}
-    `;
+    // Obtener temporada actual
+    const currentSeason = await SeasonService.getCurrentSeason();
+    if (!currentSeason) {
+      const status = await SeasonService.getSeasonStatus(
+        (await SeasonService.getAll({ limit: 1 }))[0]?.id || 0
+      );
+      return NextResponse.json(
+        { 
+          error: status.message || 'No hay temporada activa',
+          seasonStatus: status.status
+        },
+        { status: 403 }
+      );
+    }
 
-    if (userResult.length === 0) {
+    // Obtener usuario
+    const user = await UserService.findByFarcasterId(userId);
+    if (!user) {
+      console.log('Usuario no encontrado');
       return NextResponse.json(
         { error: 'Usuario no encontrado' },
         { status: 404 }
       );
     }
 
-    const realUserId = userResult[0].id;
-
-    // Obtener el ID de la temporada actual
-    const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 07';
-    `;
-
-    if (seasonResult.length === 0) {
+    // Verificar si ya tiene vida extra hoy
+    const hasExtraLife = await ExtraLifeService.hasExtraLifeToday(user.id);
+    if (hasExtraLife) {
+      console.log('Usuario ya tiene vida extra hoy');
       return NextResponse.json(
-        { error: 'Temporada no encontrada' },
+        { error: 'Ya has comprado una vida extra hoy' },
+        { status: 403 }
+      );
+    }
+
+    // Crear vida extra
+    const extraLife = await ExtraLifeService.create(
+      user.id,
+      currentSeason.id,
+      transactionHash
+    );
+
+    console.log('Vida extra creada:', extraLife);
+
+    return NextResponse.json({
+      success: true,
+      message: '¡Vida extra activada! Tienes un intento adicional.',
+      extraLife
+    });
+  } catch (error) {
+    console.error('Error procesando vida extra:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    console.log('Verificando vida extra para:', userId);
+
+    // Validar userId
+    const validation = validateFarcasterId(userId || '');
+    if (!validation.isValid) {
+      console.log('Validación fallida:', validation.errors);
+      return NextResponse.json(
+        { error: validation.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    // Obtener usuario
+    const user = await UserService.findByFarcasterId(userId!);
+    if (!user) {
+      console.log('Usuario no encontrado');
+      return NextResponse.json(
+        { error: 'Usuario no encontrado' },
         { status: 404 }
       );
     }
 
-    const seasonId = seasonResult[0].id;
+    // Verificar vida extra
+    const hasExtraLife = await ExtraLifeService.hasExtraLifeToday(user.id);
+    console.log('Estado de vida extra:', hasExtraLife);
 
-    // Registrar la vida extra
-    await sql`
-      INSERT INTO extra_lives (user_id, season_id, transaction_hash)
-      VALUES (${realUserId}, ${seasonId}, ${transactionHash})
-    `;
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ hasExtraLife });
   } catch (error) {
-    console.error('Error al procesar la compra de vida extra:', error);
+    console.error('Error verificando vida extra:', error);
     return NextResponse.json(
-      { error: 'Error al procesar la compra' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

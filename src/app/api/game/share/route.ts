@@ -1,64 +1,120 @@
 import { NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { 
+  UserService,
+  SeasonService,
+  ShareService
+} from '@/lib/database';
+import { validateFarcasterId } from '@/lib/validations';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, seasonId } = body;
+    const { userId } = body;
 
-    if (!userId || !seasonId) {
-      console.log('Faltan parámetros:', { userId, seasonId });
+    console.log('Share requested for:', userId);
+
+    // Validar userId
+    const validation = validateFarcasterId(userId || '');
+    if (!validation.isValid) {
+      console.log('Validación fallida:', validation.errors);
       return NextResponse.json(
-        { error: 'Faltan parámetros requeridos' },
+        { error: validation.errors[0].message },
         { status: 400 }
       );
     }
 
-    // Obtener el ID de la temporada
-    const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 07';
-    `;
-
-    if (seasonResult.length === 0) {
-      console.log('No se encontró la temporada Season 07');
+    // Obtener temporada actual
+    const currentSeason = await SeasonService.getCurrentSeason();
+    if (!currentSeason) {
+      const status = await SeasonService.getSeasonStatus(
+        (await SeasonService.getAll({ limit: 1 }))[0]?.id || 0
+      );
       return NextResponse.json(
-        { error: 'Temporada no encontrada' },
+        { 
+          error: status.message || 'No hay temporada activa',
+          seasonStatus: status.status
+        },
+        { status: 403 }
+      );
+    }
+
+    // Obtener usuario
+    const user = await UserService.findByFarcasterId(userId);
+    if (!user) {
+      console.log('Usuario no encontrado');
+      return NextResponse.json(
+        { error: 'Usuario no encontrado' },
         { status: 404 }
       );
     }
 
-    const realSeasonId = seasonResult[0].id;
-
-    // Obtener el ID real del usuario
-    const userResult = await sql`
-      SELECT id FROM users WHERE farcaster_id = ${userId};
-    `;
-
-    if (userResult.length === 0) {
-      console.log('Usuario no encontrado:', userId);
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    // Verificar si ya compartió hoy
+    const hasShared = await ShareService.hasSharedToday(user.id, currentSeason.id);
+    if (hasShared) {
+      console.log('Usuario ya compartió hoy');
+      return NextResponse.json(
+        { error: 'Ya has compartido hoy' },
+        { status: 403 }
+      );
     }
 
-    const realUserId = userResult[0].id;
+    // Registrar share y dar bonus
+    const share = await ShareService.create(user.id, currentSeason.id);
+    await ShareService.addShareBonus(user.id, currentSeason.id);
 
-    // Registrar el share en la base de datos
-    const shareResult = await sql`
-      INSERT INTO shares (user_id, season_id)
-      VALUES (${realUserId}, ${realSeasonId})
-      RETURNING *;
-    `;
+    console.log('Share registrado y bonus otorgado');
 
-    console.log('Share registrado:', shareResult);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      message: '¡Gracias por compartir! Has recibido puntos bonus.',
+      share
+    });
   } catch (error) {
-    console.error('Error al registrar share:', error);
+    console.error('Error procesando share:', error);
     return NextResponse.json(
-      { 
-        error: 'Error interno del servidor',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    console.log('Verificando share para:', userId);
+
+    // Validar userId
+    const validation = validateFarcasterId(userId || '');
+    if (!validation.isValid) {
+      console.log('Validación fallida:', validation.errors);
+      return NextResponse.json(
+        { error: validation.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    // Obtener usuario y temporada
+    const [user, currentSeason] = await Promise.all([
+      UserService.findByFarcasterId(userId!),
+      SeasonService.getCurrentSeason()
+    ]);
+
+    if (!user || !currentSeason) {
+      console.log('Usuario o temporada no encontrados');
+      return NextResponse.json({ hasShared: false });
+    }
+
+    // Verificar share
+    const hasShared = await ShareService.hasSharedToday(user.id, currentSeason.id);
+    console.log('Estado de share:', hasShared);
+
+    return NextResponse.json({ hasShared });
+  } catch (error) {
+    console.error('Error verificando share:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

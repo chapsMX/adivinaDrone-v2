@@ -95,6 +95,7 @@ export class SeasonService {
     const result = await sql`
       SELECT * FROM seasons 
       WHERE CURRENT_DATE BETWEEN start_date AND end_date
+      AND is_active = true
       ORDER BY start_date DESC
       LIMIT 1
     `;
@@ -115,13 +116,72 @@ export class SeasonService {
           ELSE false
         END as is_current,
         is_early_access,
-        is_active
+        is_active,
+        CASE
+          WHEN end_date < CURRENT_DATE THEN 'ended'
+          WHEN CURRENT_DATE BETWEEN start_date AND end_date THEN 'active'
+          ELSE 'upcoming'
+        END as status
       FROM seasons
       ORDER BY start_date DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
     
     return result as Season[];
+  }
+
+  static async isSeasonEnded(seasonId: number): Promise<boolean> {
+    const result = await sql`
+      SELECT end_date < CURRENT_DATE as is_ended
+      FROM seasons
+      WHERE id = ${seasonId}
+    `;
+    return result[0]?.is_ended || false;
+  }
+
+  static async getSeasonStatus(seasonId: number): Promise<{
+    status: 'upcoming' | 'active' | 'ended';
+    message?: string;
+  }> {
+    const result = await sql`
+      SELECT 
+        CASE
+          WHEN end_date < CURRENT_DATE THEN 'ended'
+          WHEN CURRENT_DATE BETWEEN start_date AND end_date THEN 'active'
+          ELSE 'upcoming'
+        END as status,
+        start_date,
+        end_date
+      FROM seasons
+      WHERE id = ${seasonId}
+    `;
+
+    if (!result.length) {
+      return { 
+        status: 'ended',
+        message: 'Temporada no encontrada'
+      };
+    }
+
+    const status = result[0].status;
+    let message;
+
+    switch (status) {
+      case 'ended':
+        message = 'La temporada ha finalizado. ¡Gracias por participar!';
+        break;
+      case 'upcoming':
+        const startDate = new Date(result[0].start_date);
+        message = `La temporada comenzará el ${startDate.toLocaleDateString()}`;
+        break;
+      case 'active':
+        const endDate = new Date(result[0].end_date);
+        const daysLeft = Math.ceil((endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        message = `¡La temporada está activa! Quedan ${daysLeft} días`;
+        break;
+    }
+
+    return { status, message };
   }
 
   static async create(data: CreateSeasonData): Promise<Season> {
@@ -366,22 +426,50 @@ export class GameService {
     reason?: string;
     dailyLimit?: boolean;
     extraLifeUsed?: boolean;
+    seasonStatus?: 'upcoming' | 'active' | 'ended';
   }> {
+    // Verificar si la temporada está activa
+    const currentSeason = await SeasonService.getCurrentSeason();
+    if (!currentSeason) {
+      const latestSeason = (await SeasonService.getAll({ limit: 1 }))[0];
+      if (!latestSeason) {
+        return {
+          canPlay: false,
+          reason: "No hay temporadas disponibles",
+          seasonStatus: 'ended'
+        };
+      }
+
+      const status = await SeasonService.getSeasonStatus(latestSeason.id);
+      return {
+        canPlay: false,
+        reason: status.message,
+        seasonStatus: status.status
+      };
+    }
+
+    // Verificar límite diario
     const dailyResponses = await UserResponseService.getDailyCount(userId);
-    const maxGames = hasExtraLife ? GameLimits.MAX_DAILY_GAMES_WITH_EXTRA_LIFE : GameLimits.MAX_DAILY_GAMES;
+    const maxGames = hasExtraLife ? 
+      GameLimits.MAX_DAILY_GAMES_WITH_EXTRA_LIFE : 
+      GameLimits.MAX_DAILY_GAMES;
 
     if (dailyResponses >= maxGames) {
       return {
         canPlay: false,
         reason: hasExtraLife 
-          ? "You've used all your attempts today, including extra life. Come back tomorrow!"
-          : "You've reached your daily limit. Purchase an extra life or come back tomorrow!",
+          ? "Has usado todos tus intentos hoy, incluyendo la vida extra. ¡Vuelve mañana!"
+          : "Has alcanzado el límite diario. ¡Compra una vida extra o vuelve mañana!",
         dailyLimit: true,
-        extraLifeUsed: hasExtraLife
+        extraLifeUsed: hasExtraLife,
+        seasonStatus: 'active'
       };
     }
 
-    return { canPlay: true };
+    return { 
+      canPlay: true,
+      seasonStatus: 'active'
+    };
   }
 
   static calculatePoints(timeLeft: number, isCorrect: boolean): number {
@@ -399,7 +487,19 @@ export class GameService {
     isCorrect: boolean;
     correctAnswer: string;
     pointsEarned: number;
+    seasonStatus?: 'upcoming' | 'active' | 'ended';
   }> {
+    // Verificar estado de la temporada
+    const seasonStatus = await SeasonService.getSeasonStatus(seasonId);
+    if (seasonStatus.status !== 'active') {
+      return {
+        isCorrect: false,
+        correctAnswer: '',
+        pointsEarned: 0,
+        seasonStatus: seasonStatus.status
+      };
+    }
+
     // Get correct answer
     const image = await ImageService.findById(imageId);
     if (!image) {
@@ -431,7 +531,8 @@ export class GameService {
     return {
       isCorrect,
       correctAnswer: image.correct_answer,
-      pointsEarned
+      pointsEarned,
+      seasonStatus: 'active'
     };
   }
 } 

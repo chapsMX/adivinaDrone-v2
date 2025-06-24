@@ -7,3 +7,4 @@ src/db/
 public/images/
 db-structure.json
 schema.sql
+.cursor

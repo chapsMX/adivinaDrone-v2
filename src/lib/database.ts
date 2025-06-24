@@ -10,30 +10,27 @@ const sql = neon(process.env.DATABASE_URL!);
 
 // User Operations
 export class UserService {
-  static async findByFarcasterId(farcaster_id: string): Promise<User | null> {
+  static async findByUsername(username: string): Promise<User | null> {
     const result = await sql`
       SELECT * FROM users 
-      WHERE farcaster_id = ${farcaster_id}
+      WHERE username = ${username}
     `;
     return (result[0] as User) || null;
   }
 
   static async createOrUpdate(data: CreateUserData): Promise<User> {
     const result = await sql`
-      INSERT INTO users (farcaster_id, username, early_access_requested, is_whitelisted)
-      VALUES (${data.farcaster_id}, ${data.username || null}, ${data.early_access_requested}, ${data.is_whitelisted})
-      ON CONFLICT (farcaster_id) 
+      INSERT INTO users (username)
+      VALUES (${data.username || null})
+      ON CONFLICT (username) 
       DO UPDATE SET 
-        username = COALESCE(EXCLUDED.username, users.username),
-        early_access_requested = EXCLUDED.early_access_requested,
-        is_whitelisted = EXCLUDED.is_whitelisted
+        username = EXCLUDED.username
       RETURNING *
     `;
     return result[0] as User;
   }
 
   static async updateById(id: number, data: UpdateUserData): Promise<User | null> {
-    // For Neon, we'll need to handle updates differently
     if (data.username !== undefined) {
       const result = await sql`
         UPDATE users 
@@ -43,27 +40,6 @@ export class UserService {
       `;
       return (result[0] as User) || null;
     }
-    
-    if (data.early_access_requested !== undefined) {
-      const result = await sql`
-        UPDATE users 
-        SET early_access_requested = ${data.early_access_requested}
-        WHERE id = ${id}
-        RETURNING *
-      `;
-      return (result[0] as User) || null;
-    }
-    
-    if (data.is_whitelisted !== undefined) {
-      const result = await sql`
-        UPDATE users 
-        SET is_whitelisted = ${data.is_whitelisted}
-        WHERE id = ${id}
-        RETURNING *
-      `;
-      return (result[0] as User) || null;
-    }
-    
     return null;
   }
 

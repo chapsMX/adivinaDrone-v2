@@ -1,43 +1,30 @@
 import { NextResponse } from 'next/server';
 import { UserService } from '@/lib/database';
-import { validateFarcasterId } from '@/lib/validations';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const username = searchParams.get('username');
 
-    console.log('Status check requested for user:', userId);
+    console.log('Status check requested for user:', username);
 
-    const validation = validateFarcasterId(userId || '');
-    if (!validation.isValid) {
-      console.log('Validación fallida:', validation.errors);
+    try {
+      // Intentar encontrar o crear el usuario
+      const user = await UserService.createOrUpdate({
+        username: username || 'Anónimo'
+      });
+      console.log('User found/created:', user);
+
+      return NextResponse.json({
+        exists: true
+      });
+    } catch (dbError) {
+      console.error('Database error:', dbError);
       return NextResponse.json(
-        { error: validation.errors[0].message },
-        { status: 400 }
+        { error: 'Database error' },
+        { status: 500 }
       );
     }
-
-    const user = await UserService.findByFarcasterId(userId!);
-    console.log('Database query result:', user);
-
-    if (!user) {
-      console.log('No user found, returning default values');
-      return NextResponse.json({
-        early_access_requested: false,
-        is_whitelisted: false
-      });
-    }
-
-    console.log('Returning user status:', {
-      early_access_requested: user.early_access_requested,
-      is_whitelisted: user.is_whitelisted
-    });
-
-    return NextResponse.json({
-      early_access_requested: user.early_access_requested,
-      is_whitelisted: user.is_whitelisted
-    });
   } catch (error) {
     console.error('Error checking user status:', error);
     return NextResponse.json(

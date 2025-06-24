@@ -10,24 +10,6 @@ function createValidationResult(errors: ValidationError[]): ValidationResult {
 }
 
 // User validation
-export function validateFarcasterId(farcaster_id: string): ValidationResult {
-  const errors: ValidationError[] = [];
-
-  if (!farcaster_id) {
-    errors.push({ field: 'farcaster_id', message: 'Farcaster ID is required' });
-  }
-
-  if (farcaster_id && typeof farcaster_id !== 'string') {
-    errors.push({ field: 'farcaster_id', message: 'Farcaster ID must be a string' });
-  }
-
-  if (farcaster_id && farcaster_id.trim().length === 0) {
-    errors.push({ field: 'farcaster_id', message: 'Farcaster ID cannot be empty' });
-  }
-
-  return createValidationResult(errors);
-}
-
 export function validateUsername(username?: string): ValidationResult {
   const errors: ValidationError[] = [];
 
@@ -307,12 +289,8 @@ export function validatePagination(limit?: number, offset?: number): ValidationR
 }
 
 // Combined validation functions
-export function validateGameRequest(userId: string, username?: string, seasonId?: string, extraLife?: boolean): ValidationResult {
+export function validateGameRequest(username?: string, seasonId?: string, extraLife?: boolean): ValidationResult {
   const errors: ValidationError[] = [];
-
-  // Validate user ID
-  const userIdValidation = validateFarcasterId(userId);
-  errors.push(...userIdValidation.errors);
 
   // Validate username if provided
   if (username !== undefined) {
@@ -335,7 +313,7 @@ export function validateGameRequest(userId: string, username?: string, seasonId?
 }
 
 export function validateAnswerRequest(
-  userId: string, 
+  username: string, 
   imageId: number, 
   seasonId: string, 
   answer: string, 
@@ -343,9 +321,9 @@ export function validateAnswerRequest(
 ): ValidationResult {
   const errors: ValidationError[] = [];
 
-  // Validate user ID
-  const userIdValidation = validateFarcasterId(userId);
-  errors.push(...userIdValidation.errors);
+  // Validate username
+  const usernameValidation = validateUsername(username);
+  errors.push(...usernameValidation.errors);
 
   // Validate image ID
   if (typeof imageId !== 'number' || !Number.isInteger(imageId) || imageId < 1) {
@@ -382,4 +360,31 @@ export function sanitizeUsername(username?: string): string | undefined {
 
 export function sanitizeSeasonName(name: string): string {
   return sanitizeString(name);
+}
+
+export function validateSignature(
+  message: string,
+  signature: string,
+  nonce: string
+): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  if (!message) {
+    errors.push({ field: 'message', message: 'Message is required' });
+  }
+
+  if (!signature) {
+    errors.push({ field: 'signature', message: 'Signature is required' });
+  } else if (!signature.startsWith('0x')) {
+    errors.push({ field: 'signature', message: 'Invalid signature format' });
+  }
+
+  if (!nonce) {
+    errors.push({ field: 'nonce', message: 'Nonce is required' });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
 } 

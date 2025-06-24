@@ -1,10 +1,7 @@
 // Database Types - Based on updated schema
 export interface User {
   id: number;
-  farcaster_id: string;
   username?: string;
-  early_access_requested: boolean;
-  is_whitelisted: boolean;
   created_at: Date;
 }
 
@@ -104,10 +101,8 @@ export interface AnswerResponse {
 }
 
 export interface LeaderboardEntry {
-  farcaster_id: string;
   username: string;
   score: number;
-  pfp_url?: string;
   rank?: number;
 }
 
@@ -188,8 +183,11 @@ export interface ValidationResult {
 }
 
 // Database operation types
-export type CreateUserData = Omit<User, 'id' | 'created_at'>;
-export type UpdateUserData = Partial<Omit<User, 'id' | 'farcaster_id' | 'created_at'>>;
+export type CreateUserData = {
+  username?: string;
+};
+
+export type UpdateUserData = Partial<Omit<User, 'id' | 'created_at'>>;
 export type CreateSeasonData = Omit<Season, 'id' | 'created_at'>;
 export type UpdateSeasonData = Partial<Omit<Season, 'id' | 'created_at'>>;
 

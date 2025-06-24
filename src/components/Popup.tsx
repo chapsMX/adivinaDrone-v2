@@ -2,33 +2,33 @@ import { protoMono } from '@/styles/fonts';
 
 interface PopupProps {
   message: string;
-  isOpen: boolean;
   onClose: () => void;
+  hasPerfectScore?: boolean;
+  canBuyExtraLife?: boolean;
+  onBuyExtraLife?: () => void;
 }
 
-export default function Popup({ message, isOpen, onClose }: PopupProps) {
-  if (!isOpen) return null;
-
+export default function Popup({ message, onClose, hasPerfectScore, canBuyExtraLife, onBuyExtraLife }: PopupProps) {
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50">
-      {/* Overlay con efecto de desenfoque */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Contenedor del popup */}
-      <div className={`relative bg-[#3d3849] border-2 border-[#ff8800] rounded-xl p-6 max-w-md w-[95%] ${protoMono.className}`}>
-        {/* Botón de cerrar */}
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-[#2d283a] p-6 rounded-xl max-w-md w-full mx-4 border-2 border-[#ff8800]">
+        <p className="text-white text-center mb-6">{message}</p>
+        
+        {canBuyExtraLife && onBuyExtraLife && (
+          <button
+            onClick={onBuyExtraLife}
+            className="w-full bg-[#ff8800] text-white py-2 rounded-lg mb-4 hover:bg-[#e67a00] transition-colors"
+          >
+            Buy Extra Life
+          </button>
+        )}
+
         <button
           onClick={onClose}
-          className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-white hover:text-[#ff8800] transition-colors"
+          className="w-full bg-transparent border-2 border-[#ff8800] text-white py-2 rounded-lg hover:bg-[#3d3849] transition-colors"
         >
-          ✕
+          {hasPerfectScore ? "See you tomorrow!" : "Close"}
         </button>
-        
-        {/* Mensaje */}
-        <div className="text-white text-center mt-2" dangerouslySetInnerHTML={{ __html: message }} />
       </div>
     </div>
   );

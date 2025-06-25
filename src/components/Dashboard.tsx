@@ -128,7 +128,7 @@ export default function AdivinaDrone() {
 
     // Verificar si el usuario puede jugar normalmente
     try {
-      const response = await fetch(`/api/game?userId=${context.user.fid}&seasonId=Season 07&extraLife=false&username=${context.user.username}`);
+      const response = await fetch(`/api/game?userId=${context.user.fid}&seasonId=Season 08&extraLife=false&username=${context.user.username}`);
       const data = await response.json();
       
       if (response.status === 403) {
@@ -294,7 +294,7 @@ export default function AdivinaDrone() {
           {isGameActive && context?.user ? (
             <Game 
               userId={context.user.fid.toString()} 
-              seasonId="Season 07"
+              seasonId="Season 08"
               username={context.user.username || 'Anónimo'}
               onBack={() => {
                 setIsGameActive(false);
@@ -318,14 +318,14 @@ export default function AdivinaDrone() {
                   Share Mini App for a chance to win 10M $DRONE
                 </Button>
 
-             {/* <Button
+            <Button
                   onClick={handleStartGame}
                   className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
                 >
                   {hasExtraLife && !isExtraLifeUsed ? 'Play Your Extra Life' : 
                    canBuyExtraLife ? 'Buy Extra Life' : 
                    'Play Now'}
-                </Button> */}
+              </Button>
               </div>
               <hr></hr>
               <hr></hr>

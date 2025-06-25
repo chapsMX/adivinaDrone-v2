@@ -253,7 +253,7 @@ export async function GET(
               height: "2px",
               backgroundColor: "#ffffff"
             }}/>
-            <div>Season 07</div>
+            <div>Season 08</div>
           </div>
         </div>
       ),

@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
     // Obtener el ID de la temporada
     const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 07';
+      SELECT id FROM seasons WHERE name = 'Season 08';
     `;
 
     if (seasonResult.length === 0) {

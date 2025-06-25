@@ -149,7 +149,7 @@ export default function ExtraLifePage() {
     return (
       <Game 
         userId={context.user.fid.toString()} 
-        seasonId="Season 07"
+        seasonId="Season 08"
         username={context.user.username || 'Anónimo'}
         onBack={() => {
           setIsGameActive(false);

@@ -96,11 +96,17 @@ export async function GET(request: Request) {
 
     // Verificar si el usuario existe y crearlo si no existe
     const userResult = await sql`
-      INSERT INTO users (farcaster_id, username)
-      VALUES (${userId}, ${username})
-      ON CONFLICT (farcaster_id) DO UPDATE 
-      SET username = COALESCE(EXCLUDED.username, users.username)
-      RETURNING id;
+      WITH existing_user AS (
+        SELECT id FROM users WHERE farcaster_id = ${userId}
+      ), inserted_user AS (
+        INSERT INTO users (farcaster_id, username)
+        SELECT ${userId}, ${username}
+        WHERE NOT EXISTS (SELECT 1 FROM existing_user)
+        RETURNING id
+      )
+      SELECT id FROM existing_user
+      UNION ALL
+      SELECT id FROM inserted_user;
     `;
 
     const realUserId = userResult[0].id;

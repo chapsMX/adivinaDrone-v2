@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
     // Obtener el ID de la temporada
     const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 07';
+      SELECT id FROM seasons WHERE name = 'Season 08';
     `;
 
     if (seasonResult.length === 0) {
@@ -34,13 +34,9 @@ export async function POST(request: Request) {
     const realSeasonId = seasonResult[0].id;
     console.log('ID real de la temporada:', realSeasonId);
 
-    // Verificar si el usuario existe y crearlo si no existe
+    // Obtener el ID del usuario
     const userResult = await sql`
-      INSERT INTO users (farcaster_id)
-      VALUES (${userId})
-      ON CONFLICT (farcaster_id) DO UPDATE
-      SET farcaster_id = EXCLUDED.farcaster_id
-      RETURNING id;
+      SELECT id FROM users WHERE farcaster_id = ${userId};
     `;
 
     if (!userResult || userResult.length === 0) {
@@ -87,7 +83,8 @@ export async function POST(request: Request) {
     const responseResult = await sql`
       INSERT INTO user_responses (
         user_id, 
-        image_id, 
+        image_id,
+        season_id,
         selected_answer, 
         is_correct,
         response_time,
@@ -95,7 +92,8 @@ export async function POST(request: Request) {
       )
       VALUES (
         ${realUserId}, 
-        ${imageId}, 
+        ${imageId},
+        ${realSeasonId},
         ${answer}, 
         ${isCorrect},
         ${90 - timeLeft},

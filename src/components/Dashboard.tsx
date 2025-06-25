@@ -96,7 +96,10 @@ export default function AdivinaDrone() {
       💸 Up to 350 USDC in prizes
       ➕ Add the Mini App & turn notis on 🔔`;
       const url = "https://adivinadrone.c13studio.mx";
-      await sdk.actions.openUrl(`https://farcaster.xyz/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
+      await sdk.actions.composeCast({
+        text: text,
+        embeds: [url]
+      });
     } catch (error) {
       console.error('Error sharing stats:', error);
     }
@@ -153,8 +156,8 @@ export default function AdivinaDrone() {
   // Si hay contexto de usuario, mostrar el dashboard
   return (
     <div className="min-h-screen bg-[#2d283a] text-white font-mono flex flex-col">
-      <header className={`w-full p-3 flex justify-between items-center ${protoMono.className}`}>
-        <div className="flex items-center">
+      <header className={`w-full p-2 flex mt-2 justify-between items-center ${protoMono.className}`}>
+        <div className="flex items-center mb-0">
           <Image
             src="/favicon.png"
             alt="adivinaDrone Logo"
@@ -194,8 +197,8 @@ export default function AdivinaDrone() {
         />
       )}
 
-      <main className="flex-1 flex items-center justify-center p-0">
-        <div className="flex flex-col items-center gap-4 w-[95%] max-w-2xl">
+      <main className="flex-1 flex items-start justify-center p-0 mt-0">
+        <div className="flex flex-col items-center gap-2 w-[95%] max-w-2xl">
           <h1 className={`text-4xl font-bold ${protoMono.className}`}>
             adivinaDrone
             <hr />
@@ -204,12 +207,12 @@ export default function AdivinaDrone() {
 
           <Button
             onClick={handleShareStats}
-            className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors"
+            className={`w-full bg-[#3d3849] border-2 border-[#ff8800] ${protoMono.className} hover:bg-[#4d4859] text-white font-bold py-1 px-1 rounded-xl transition-colors`}
           >
             Share Mini App for a chance to win 10M $DRONE
           </Button>
 
-          <div className="relative border-2 border-[#ff8800] bg-[#3d3849] rounded-2xl p-6 max-w-2xl w-full overflow-hidden">
+          <div className="relative border-2 border-[#ff8800] bg-[#3d3849] rounded-2xl p-3 max-w-2xl w-full overflow-hidden">
             <div className="absolute inset-0 z-0">
               <Image
                 src="/mapaTrans.png"

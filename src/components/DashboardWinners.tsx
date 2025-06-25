@@ -16,7 +16,10 @@ interface DashboardProps {
 interface TopPlayer {
   username: string;
   score: number;
-  pfp_url: string | null;
+  pfp_url: string;
+  rank: number;
+  total_players: number;
+  percentile: number;
 }
 
 interface Season {
@@ -35,7 +38,8 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
   });
   const [topPlayers, setTopPlayers] = React.useState<TopPlayer[]>([]);
   const [seasons, setSeasons] = React.useState<Season[]>([]);
-  const [selectedSeason, setSelectedSeason] = React.useState<string>('Season 07');
+  const [selectedSeason, setSelectedSeason] = React.useState<string>('Season 08');
+  const [error, setError] = React.useState<string | null>(null);
 
   // Cargar temporadas y establecer la actual
   React.useEffect(() => {
@@ -49,23 +53,37 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
             setSelectedSeason(currentSeason.name);
           }
         })
-        .catch(err => console.error('Error fetching seasons:', err));
+        .catch(err => {
+          console.error('Error fetching seasons:', err);
+          setError('Error loading seasons');
+        });
     }
   }, [isOpen]);
 
   // Cargar estadísticas y top players cuando cambia la temporada
   React.useEffect(() => {
     if (isOpen && selectedSeason) {
+      setError(null);
       // Obtener estadísticas del usuario
-      fetch(`/api/user/stats?userId=${userId}&seasonId=${selectedSeason}`)
-        .then(res => res.json())
+      fetch(`/api/user/stats?username=${encodeURIComponent(username)}&seasonId=${selectedSeason}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load user stats');
+          return res.json();
+        })
         .then(data => setStats(data))
-        .catch(err => console.error('Error fetching user stats:', err));
+        .catch(err => {
+          console.error('Error fetching user stats:', err);
+          setError('Error loading user statistics');
+        });
 
       // Obtener top jugadores
       fetch(`/api/leaderboard/top?seasonId=${selectedSeason}`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to load leaderboard');
+          return res.json();
+        })
         .then(data => {
+          console.log('Leaderboard data received:', data);
           const players = Array.isArray(data) ? data : [];
           setTopPlayers(players);
         })
@@ -74,13 +92,13 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
           setTopPlayers([]);
         });
     }
-  }, [isOpen, userId, selectedSeason]);
+  }, [isOpen, username, selectedSeason]);
 
   if (!isOpen) return null;
 
   return createPortal(
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
-      <div className="bg-[#3d3849] border border-[#ff8800] rounded-2xl p-6 max-w-2xl w-full mx-4 relative">
+      <div className="bg-[#3d3849] border border-[#ff8800] rounded-2xl p-6 max-w-xl w-full mx-4 relative">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-white hover:text-[#ff8800] transition-colors"
@@ -90,7 +108,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
           </svg>
         </button>
 
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-3">
           <h2 className={`text-3xl font-bold text-white ${protoMono.className}`}>{selectedSeason}</h2>
           <select
             value={selectedSeason}
@@ -105,12 +123,17 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
           </select>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {error && (
+            <div className="p-3 border border-red-500 rounded-xl bg-red-500/20 text-white">
+              {error}
+            </div>
+          )}
           <div className="p-3 border border-[#ff8800] rounded-xl bg-black/20">
             <div className="flex items-center gap-3 mb-3">
               <div className="relative w-12 h-12">
                 <Image
-                  src={context.user.pfpUrl || '/default-avatar.png'}
+                  src={context?.user?.pfpUrl || 'https://adivinadrone.c13studio.mx/default-avatar.jpg'}
                   alt="Profile"
                   fill
                   className="rounded-full border-2 border-[#ff8800] object-cover"
@@ -120,55 +143,34 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
               <p className={`text-xl text-white ${protoMono.className}`}>{username}</p>
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-0">
                 <span className={`text-white ${protoMono.className}`}>Games played:</span>
                 <span className={`text-white ${protoMono.className}`}>{stats.gamesPlayed}</span>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-0">
                 <span className={`text-white ${protoMono.className}`}>Global Score:</span>
-                <span className={`text-white ${protoMono.className}`}>{stats.totalScore}</span>
+                <span className={`text-white ${protoMono.className}`}>{stats.totalScore.toLocaleString('en-US')}</span>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-0">
                 <span className={`text-white ${protoMono.className}`}>Average response:</span>
                 <span className={`text-white ${protoMono.className}`}>{stats.averageResponseTime}s</span>
               </div>
               <button
                 onClick={async () => {
                   try {
-                    // Primero registrar el share en la base de datos
-                    console.log('Registrando share desde Dashboard:', { userId, seasonId: selectedSeason });
-                    const shareResponse = await fetch("/api/game/share", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        userId,
-                        seasonId: selectedSeason
-                      }),
-                    });
-
-                    const shareData = await shareResponse.json();
-                    console.log('Respuesta del share:', shareData);
-
-                    if (!shareResponse.ok) {
-                      throw new Error(shareData.error || 'Failed to register share');
-                    }
-
-                    // Una vez registrado el share, abrir el composer
-                    const text = `My /adivinadrone stats:\nGames Played: ${stats.gamesPlayed}\nGlobal Score: ${stats.totalScore}\nAverage Response: ${stats.averageResponseTime}s\nCan you beat my score? 🚀`;
+                    const text = `My /adivinadrone stats:\nGames Played: ${stats.gamesPlayed}\nGlobal Score: ${stats.totalScore.toLocaleString('en-US')}\nAverage Response: ${stats.averageResponseTime}s\nCan you beat my score? 🚀`;
                     const url = "https://adivinadrone.c13studio.mx";
                     
-                    // Pequeño delay para asegurar que el share se registre
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    await sdk.actions.openUrl(`https://farcaster.xyz/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
+                    await sdk.actions.composeCast({
+                      text: text,
+                      embeds: [url]
+                    });
                   } catch (error) {
-                    console.error('Error al registrar share:', error);
+                    console.error('Error sharing stats:', error);
                     if (error instanceof Error) {
-                      alert('Error al compartir: ' + error.message);
+                      alert('Error sharing: ' + error.message);
                     } else {
-                      alert('Error al compartir. Por favor, intenta de nuevo.');
+                      alert('Error sharing. Please try again.');
                     }
                   }
                 }}
@@ -179,9 +181,9 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
             </div>
           </div>
 
-          <div className="p-2 border border-[#ff8800] rounded-xl bg-black/20">
-            <h3 className={`text-lg font-bold text-white mb-2 ${protoMono.className}`}>Top Players</h3>
-            <div className="space-y-0">
+          <div className="p-0 border border-[#ff8800] rounded-xl bg-black/20">
+            <h3 className={`text-lg p-2 font-bold text-white mb-0 ${protoMono.className}`}>Top 25 Players</h3>
+            <div className="space-y-0 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#ff8800] scrollbar-track-black/20">
               {Array.isArray(topPlayers) && topPlayers.map((player, index) => (
                 <div 
                   key={`player-${index}`} 
@@ -190,7 +192,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
                   <span className={`text-base font-bold text-white ${protoMono.className}`}>#{index + 1}</span>
                   <div className="relative w-6 h-6">
                     <Image
-                      src={player.pfp_url || '/default-avatar.png'}
+                      src={player.pfp_url || 'https://adivinadrone.c13studio.mx/default-avatar.jpg'}
                       alt={player.username || 'Anónimo'}
                       fill
                       className="rounded-full border border-[#ff8800] object-cover"
@@ -198,7 +200,9 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
                     />
                   </div>
                   <span className={`flex-1 text-sm text-white ${protoMono.className}`}>{player.username || 'Anónimo'}</span>
-                  <span className={`font-bold text-sm text-white ${protoMono.className}`}>{player.score}</span>
+                  <span className={`font-bold text-sm text-white ${protoMono.className}`}>
+                    {player.score.toLocaleString('en-US')}
+                  </span>
                 </div>
               ))}
             </div>

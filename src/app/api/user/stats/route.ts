@@ -10,18 +10,19 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const seasonId = searchParams.get('seasonId');
+    const username = searchParams.get('username');
 
-    console.log('Stats requested for:', { userId, seasonId });
+    console.log('Stats requested for:', { userId, username, seasonId });
 
-    if (!userId) {
+    if (!username) {
       return NextResponse.json(
-        { error: 'User ID is required' },
+        { error: 'Username is required' },
         { status: 400 }
       );
     }
 
-    // Obtener el usuario
-    const user = await UserService.findByFarcasterId(userId);
+    // Obtener el usuario por username
+    const user = await UserService.findByUsername(username);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },

@@ -10,6 +10,14 @@ const sql = neon(process.env.DATABASE_URL!);
 
 // User Operations
 export class UserService {
+  static async findByFarcasterId(farcaster_id: string): Promise<User | null> {
+    const result = await sql`
+      SELECT * FROM users 
+      WHERE farcaster_id = ${farcaster_id}
+    `;
+    return (result[0] as User) || null;
+  }
+
   static async findByUsername(username: string): Promise<User | null> {
     const result = await sql`
       SELECT * FROM users 
@@ -294,17 +302,29 @@ export class SeasonPointsService {
   }
 
   static async getLeaderboard(seasonId: number, limit: number = 10): Promise<LeaderboardEntry[]> {
+    console.log('Getting leaderboard for season:', seasonId);
     const result = await sql`
-      SELECT DISTINCT
-        u.farcaster_id,
-        u.username,
-        sp.total_points as score
-      FROM season_points sp
-      JOIN users u ON u.id = sp.user_id
-      WHERE sp.season_id = ${seasonId}
-      ORDER BY sp.total_points DESC
+      WITH ranked_users AS (
+        SELECT 
+          u.id,
+          u.username,
+          sp.total_points as score,
+          ROW_NUMBER() OVER (ORDER BY sp.total_points DESC) as rank,
+          COUNT(*) OVER () as total_players
+        FROM season_points sp
+        JOIN users u ON u.id = sp.user_id
+        WHERE sp.season_id = ${seasonId}
+      )
+      SELECT 
+        username,
+        score,
+        rank,
+        total_players,
+        ROUND((total_players - rank)::float / total_players * 100) as percentile
+      FROM ranked_users
       LIMIT ${limit}
     `;
+    console.log('Database result:', result);
     return result as LeaderboardEntry[];
   }
 

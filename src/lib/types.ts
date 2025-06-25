@@ -103,7 +103,10 @@ export interface AnswerResponse {
 export interface LeaderboardEntry {
   username: string;
   score: number;
-  rank?: number;
+  rank: number;
+  total_players: number;
+  percentile: number;
+  pfp_url: string;
 }
 
 export interface UserStats {

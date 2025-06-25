@@ -8,3 +8,9 @@ public/images/
 db-structure.json
 schema.sql
 .cursor
+
+# Tests
+**/__tests__/
+/coverage/
+*.test.*
+*.spec.*

@@ -158,12 +158,16 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
               <button
                 onClick={async () => {
                   try {
-                    const text = `My /adivinadrone stats:\nGames Played: ${stats.gamesPlayed}\nGlobal Score: ${stats.totalScore.toLocaleString('en-US')}\nAverage Response: ${stats.averageResponseTime}s\nCan you beat my score? 🚀`;
-                    const url = "https://adivinadrone.c13studio.mx";
+                    const text = `My /adivinadrone ${selectedSeason} global stats:\nCan you beat my score? 🚀`;
+                    const shareID = `${stats.gamesPlayed}-${stats.totalScore}-${stats.averageResponseTime}`;
+                    // Crear URL para la imagen OG con las estadísticas
+                    /* const shareUrl = `https://c93f7497bad3.ngrok.app/api/shl/${stats.gamesPlayed}-${stats.totalScore}-${stats.averageResponseTime}`; */
+                    const shareUrl = `https://c93f7497bad3.ngrok.app/share-leaderboard/${shareID}`;
+                    console.log('Share URL:', shareUrl);
                     
                     await sdk.actions.composeCast({
                       text: text,
-                      embeds: [url]
+                      embeds: [shareUrl]
                     });
                   } catch (error) {
                     console.error('Error sharing stats:', error);

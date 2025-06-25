@@ -387,4 +387,31 @@ export function validateSignature(
     isValid: errors.length === 0,
     errors
   };
+}
+
+// Farcaster validation
+export function validateFarcasterId(fid: string): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  if (!fid) {
+    errors.push({ field: 'farcaster_id', message: 'Farcaster ID is required' });
+    return createValidationResult(errors);
+  }
+
+  if (typeof fid !== 'string') {
+    errors.push({ field: 'farcaster_id', message: 'Farcaster ID must be a string' });
+    return createValidationResult(errors);
+  }
+
+  if (fid.trim().length === 0) {
+    errors.push({ field: 'farcaster_id', message: 'Farcaster ID cannot be empty' });
+  }
+
+  // Check if it's a valid number when parsed
+  const parsedFid = parseInt(fid);
+  if (isNaN(parsedFid) || parsedFid < 1) {
+    errors.push({ field: 'farcaster_id', message: 'Farcaster ID must be a positive number' });
+  }
+
+  return createValidationResult(errors);
 } 

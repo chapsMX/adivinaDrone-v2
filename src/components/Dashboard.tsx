@@ -10,10 +10,8 @@ import '@/styles/footer.css';
 import Game from './Game';
 import DashboardWinners from './DashboardWinners';
 import Popup from './Popup';
-import { useRouter } from 'next/navigation';
 
 export default function AdivinaDrone() {
-  const router = useRouter();
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
   const [context, setContext] = useState<Context.FrameContext>();
   const [isGameActive, setIsGameActive] = useState(false);

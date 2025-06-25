@@ -6,6 +6,7 @@ const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 
 interface LeaderboardRow {
   farcaster_id: string;
+  username: string;
   score: number;
 }
 
@@ -29,28 +30,42 @@ interface CombinedResult {
   pfp_url: string | null;
 }
 
-async function fetchUserProfiles(fids: string[]): Promise<NeynarUser[]> {
+async function fetchUserProfiles(usernames: string[]): Promise<NeynarUser[]> {
   try {
-    console.log('Fetching profiles for FIDs:', fids);
-    const response = await fetch(
-      `https://api.neynar.com/v2/farcaster/user/bulk?fids=${fids.join(',')}`,
-      {
-        headers: {
-          'accept': 'application/json',
-          'api_key': NEYNAR_API_KEY || '',
-        }
-      }
-    );
-    
-    if (!response.ok) {
-      console.error('Neynar API error:', response.status, response.statusText);
-      throw new Error('Error fetching user profiles');
+    // Si no hay usernames válidos, retornar array vacío
+    if (!usernames.length || usernames.every(username => !username)) {
+      console.log('No valid usernames to fetch');
+      return [];
     }
-    
-    const data = await response.json() as NeynarResponse;
-    console.log('Neynar API response:', data);
 
-    return data.users;
+    // Filtrar usernames nulos
+    const validUsernames = usernames.filter(username => username !== null);
+    if (!validUsernames.length) {
+      console.log('No valid usernames after filtering');
+      return [];
+    }
+
+    console.log('Fetching profiles for usernames:', validUsernames);
+
+    // Hacer las peticiones en paralelo para cada username
+    const userPromises = validUsernames.map(username => 
+      fetch(
+        `https://api.neynar.com/v2/farcaster/user/by_username/?username=${username}`,
+        {
+          headers: {
+            'accept': 'application/json',
+            'x-api-key': NEYNAR_API_KEY || '',
+            'x-neynar-experimental': 'false'
+          }
+        }
+      ).then(res => res.json())
+    );
+
+    const responses = await Promise.all(userPromises);
+    const users = responses.map(response => response.user).filter(user => user);
+    
+    console.log('Neynar API responses:', users);
+    return users;
   } catch (error) {
     console.error('Error fetching user profiles:', error);
     return [];
@@ -73,36 +88,38 @@ export async function GET(request: Request) {
 
     const realSeasonId = seasonResult[0].id;
 
-    // Obtener top 10 jugadores directamente de season_points
+    // Obtener top 25 jugadores con sus datos completos
     const result = await sql`
       SELECT DISTINCT
-        u.farcaster_id,
+        u.username,
         sp.total_points as score
       FROM season_points sp
       JOIN users u ON u.id = sp.user_id
       WHERE sp.season_id = ${realSeasonId}
+        AND sp.total_points > 0
+        AND u.username IS NOT NULL
       ORDER BY sp.total_points DESC
-      LIMIT 5;
+      LIMIT 25;
     `;
 
     console.log('Database result:', result);
 
     // Obtener los perfiles de usuario de Neynar
-    const fids = (result as LeaderboardRow[]).map(row => row.farcaster_id);
-    const userProfiles = await fetchUserProfiles(fids);
+    const usernames = (result as LeaderboardRow[]).map(row => row.username);
+    const userProfiles = await fetchUserProfiles(usernames);
 
     console.log('User profiles from Neynar:', userProfiles);
 
     // Combinar los resultados
     const combinedResults = (result as LeaderboardRow[]).map((row): CombinedResult => {
       const userProfile = userProfiles.find(
-        profile => String(profile.fid) === row.farcaster_id
+        profile => profile.username === row.username
       );
       
-      console.log('Matching profile for farcaster_id:', row.farcaster_id, userProfile);
+      console.log('Matching profile for username:', row.username, userProfile);
       
       return {
-        username: userProfile?.display_name || userProfile?.username || 'Anónimo',
+        username: userProfile?.username || row.username || 'Anónimo',
         score: row.score,
         pfp_url: userProfile?.pfp_url || null
       };

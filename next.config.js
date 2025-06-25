@@ -16,6 +16,9 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    optimizePackageImports: ['@farcaster/frame-sdk'],
+  }
 }
 
 module.exports = nextConfig 

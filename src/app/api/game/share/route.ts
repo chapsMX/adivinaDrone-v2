@@ -6,7 +6,7 @@ const sql = neon(process.env.DATABASE_URL!);
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, seasonId } = body;
+    const { userId, seasonId, shareType = 'daily' } = body;
 
     if (!userId || !seasonId) {
       console.log('Faltan parámetros:', { userId, seasonId });
@@ -18,11 +18,11 @@ export async function POST(request: Request) {
 
     // Obtener el ID de la temporada
     const seasonResult = await sql`
-      SELECT id FROM seasons WHERE name = 'Season 07';
+      SELECT id FROM seasons WHERE name = 'Season 08';
     `;
 
     if (seasonResult.length === 0) {
-      console.log('No se encontró la temporada Season 07');
+      console.log('No se encontró la temporada Season 08');
       return NextResponse.json(
         { error: 'Temporada no encontrada' },
         { status: 404 }
@@ -43,12 +43,23 @@ export async function POST(request: Request) {
 
     const realUserId = userResult[0].id;
 
-    // Registrar el share en la base de datos
-    const shareResult = await sql`
-      INSERT INTO shares (user_id, season_id)
-      VALUES (${realUserId}, ${realSeasonId})
-      RETURNING *;
-    `;
+    let shareResult;
+    
+    // Si es un share diario, usamos la tabla con restricción
+    if (shareType === 'daily') {
+      shareResult = await sql`
+        INSERT INTO shares (user_id, season_id)
+        VALUES (${realUserId}, ${realSeasonId})
+        RETURNING *;
+      `;
+    } else {
+      // Para shares de app o stats, usamos una tabla separada sin restricción diaria
+      shareResult = await sql`
+        INSERT INTO app_shares (user_id, season_id, share_type)
+        VALUES (${realUserId}, ${realSeasonId}, ${shareType})
+        RETURNING *;
+      `;
+    }
 
     console.log('Share registrado:', shareResult);
     return NextResponse.json({ success: true });

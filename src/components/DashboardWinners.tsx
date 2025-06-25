@@ -35,7 +35,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
   });
   const [topPlayers, setTopPlayers] = React.useState<TopPlayer[]>([]);
   const [seasons, setSeasons] = React.useState<Season[]>([]);
-  const [selectedSeason, setSelectedSeason] = React.useState<string>('Season 07');
+  const [selectedSeason, setSelectedSeason] = React.useState<string>('Season 08');
 
   // Cargar temporadas y establecer la actual
   React.useEffect(() => {
@@ -44,10 +44,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
         .then(res => res.json())
         .then(data => {
           setSeasons(data);
-          const currentSeason = data.find((s: Season) => s.is_current);
-          if (currentSeason) {
-            setSelectedSeason(currentSeason.name);
-          }
+          // Ya no necesitamos establecer la temporada aquí ya que usamos Season 08 por defecto
         })
         .catch(err => console.error('Error fetching seasons:', err));
     }
@@ -126,7 +123,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
               </div>
               <div className="flex justify-between items-center">
                 <span className={`text-white ${protoMono.className}`}>Global Score:</span>
-                <span className={`text-white ${protoMono.className}`}>{stats.totalScore}</span>
+                <span className={`text-white ${protoMono.className}`}>{stats.totalScore.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className={`text-white ${protoMono.className}`}>Average response:</span>
@@ -144,7 +141,8 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
                       },
                       body: JSON.stringify({
                         userId,
-                        seasonId: selectedSeason
+                        seasonId: selectedSeason,
+                        shareType: 'stats'
                       }),
                     });
 
@@ -155,20 +153,22 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
                       throw new Error(shareData.error || 'Failed to register share');
                     }
 
-                    // Una vez registrado el share, abrir el composer
-                    const text = `My /adivinadrone stats:\nGames Played: ${stats.gamesPlayed}\nGlobal Score: ${stats.totalScore}\nAverage Response: ${stats.averageResponseTime}s\nCan you beat my score? 🚀`;
-                    const url = "https://adivinadrone.c13studio.mx";
-                    
-                    // Pequeño delay para asegurar que el share se registre
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    await sdk.actions.openUrl(`https://farcaster.xyz/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
+                    // Una vez registrado el share, abrir el composer con el nuevo formato
+                    const text = `My /adivinadrone ${selectedSeason} global stats:\nCan you beat my score? 🚀`;
+                    const shareID = `${stats.gamesPlayed}-${stats.totalScore}-${stats.averageResponseTime}`;
+                    const shareUrl = `https://adivinadrone.c13studio.mx/share-leaderboard/${shareID}`;
+                    console.log('Share URL:', shareUrl);
+
+                    await sdk.actions.composeCast({
+                      text: text,
+                      embeds: [shareUrl]
+                    });
                   } catch (error) {
                     console.error('Error al registrar share:', error);
                     if (error instanceof Error) {
-                      alert('Error al compartir: ' + error.message);
+                      alert('Error sharing: ' + error.message);
                     } else {
-                      alert('Error al compartir. Por favor, intenta de nuevo.');
+                      alert('Error sharing. Please try again.');
                     }
                   }
                 }}
@@ -181,7 +181,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
 
           <div className="p-2 border border-[#ff8800] rounded-xl bg-black/20">
             <h3 className={`text-lg font-bold text-white mb-2 ${protoMono.className}`}>Top Players</h3>
-            <div className="space-y-0">
+            <div className="space-y-0 h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#ff8800] scrollbar-track-black/20">
               {Array.isArray(topPlayers) && topPlayers.map((player, index) => (
                 <div 
                   key={`player-${index}`} 
@@ -198,7 +198,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
                     />
                   </div>
                   <span className={`flex-1 text-sm text-white ${protoMono.className}`}>{player.username || 'Anónimo'}</span>
-                  <span className={`font-bold text-sm text-white ${protoMono.className}`}>{player.score}</span>
+                  <span className={`font-bold text-sm text-white ${protoMono.className}`}>{player.score.toLocaleString()}</span>
                 </div>
               ))}
             </div>

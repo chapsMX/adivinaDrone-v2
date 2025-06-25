@@ -165,15 +165,47 @@ export default function AdivinaDrone() {
 
   const handleShareStats = async () => {
     try {
+      // Primero registrar el share en la base de datos
+      if (!context?.user) return;
+
+      console.log('Registrando share desde Dashboard:', { userId: context.user.fid, seasonId: "Season 08" });
+      const shareResponse = await fetch("/api/game/share", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: context.user.fid,
+          seasonId: "Season 08",
+          shareType: 'app'
+        }),
+      });
+
+      const shareData = await shareResponse.json();
+      console.log('Respuesta del share:', shareData);
+
+      if (!shareResponse.ok) {
+        throw new Error(shareData.error || 'Failed to register share');
+      }
+
       const text = `Im ready to play season 08 of /adivinadrone by @chaps
       ♻️ Leaderboard updated daily
       🏆 3 winners per season
       💸 Up to 350 USDC in prizes
       ➕ Add the Mini App & turn notis on 🔔`;
       const url = "https://adivinadrone.c13studio.mx";
-      await sdk.actions.openUrl(`https://farcaster.xyz/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(url)}`);
+      
+      await sdk.actions.composeCast({
+        text,
+        embeds: [url]
+      });
     } catch (error) {
       console.error('Error sharing stats:', error);
+      if (error instanceof Error) {
+        alert('Error sharing: ' + error.message);
+      } else {
+        alert('Error sharing. Please try again.');
+      }
     }
   };
 

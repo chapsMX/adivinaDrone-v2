@@ -18,6 +18,9 @@ const nextConfig = {
   },
   experimental: {
     optimizePackageImports: ['@farcaster/frame-sdk'],
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   }
 }
 

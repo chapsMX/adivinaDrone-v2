@@ -37,7 +37,7 @@ export async function GET(
     console.log('Parsed stats:', { gamesPlayed, score, avgResponse });
 
     // Load assets
-    const fontPath = path.join(process.cwd(), 'src/styles/fonts/ProtoMono-Regular.otf');
+    const fontPath = path.join(process.cwd(), 'public/fonts/ProtoMono-Regular.otf');
     const fontData = fs.readFileSync(fontPath);
     const backgroundMap = await loadImage('https://adivinadrone.c13studio.mx/mapaTrans.png');
     const logoImage = await loadImage('https://adivinadrone.c13studio.mx/splashC.png');

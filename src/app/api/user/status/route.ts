@@ -7,35 +7,39 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    const username = searchParams.get('username');
 
-    console.log('Status check requested for user:', userId);
+    console.log('Status check requested for:', { userId, username });
 
-    if (!userId) {
-      console.log('No userId provided');
+    if (!userId || !username) {
+      console.log('Missing required parameters');
       return NextResponse.json(
-        { error: 'Missing userId parameter' },
+        { error: 'Missing required parameters' },
         { status: 400 }
       );
     }
 
-    const result = await sql`
-      SELECT early_access_requested, is_whitelisted
-      FROM users
+    // Primero limpiamos cualquier registro existente con ese farcaster_id
+    await sql`
+      UPDATE users 
+      SET farcaster_id = NULL
       WHERE farcaster_id = ${userId};
+    `;
+
+    // Ahora actualizamos el usuario correcto
+    const result = await sql`
+      UPDATE users 
+      SET farcaster_id = ${userId}
+      WHERE username = ${username}
+      RETURNING *;
     `;
 
     console.log('Database query result:', result);
 
-    if (result.length === 0) {
-      console.log('No user found, returning default values');
-      return NextResponse.json({
-        early_access_requested: false,
-        is_whitelisted: false
-      });
-    }
-
-    console.log('Returning user status:', result[0]);
-    return NextResponse.json(result[0]);
+    // Siempre retornar acceso permitido ya que la temporada está abierta para todos
+    return NextResponse.json({
+      success: true
+    });
   } catch (error) {
     console.error('Error checking user status:', error);
     return NextResponse.json(

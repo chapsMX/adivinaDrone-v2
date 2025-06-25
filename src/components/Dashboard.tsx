@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import sdk, {
        type Context,
 } from "@farcaster/frame-sdk";
-// import { useAccount } from 'wagmi';
-import  {signIn, getCsrfToken} from "next-auth/react";
 import { Button } from "../styles/ui/Button";
 import { protoMono } from '@/styles/fonts';
 import Image from 'next/image';
@@ -23,8 +21,6 @@ export default function AdivinaDrone() {
   const [isGameActive, setIsGameActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  // const { address } = useAccount();
-  const [isSigningIn, setIsSigningIn] = useState(false);
   const [dailyLimitMessage, setDailyLimitMessage] = useState<string | null>(null);
   const [hasPerfectScore, setHasPerfectScore] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -64,39 +60,12 @@ export default function AdivinaDrone() {
     }
   }, [isSDKLoaded]);
 
-  // Inicio de sesión después de que el frame esté cargado
-  useEffect(() => {
-    const signInUser = async () => {
-      // Solo intentar sign in si no hay usuario en el contexto y no estamos ya en proceso de sign in
-      if (isSDKLoaded && !isSigningIn && !context?.user) {
-        setIsSigningIn(true);
-        try {
-          const nonce = await getCsrfToken();
-          if (nonce) {
-            const result = await sdk.actions.signIn({ nonce });
-            await signIn("credentials", {
-              message: result.message,
-              signature: result.signature,
-              redirect: false,
-            });
-          }
-        } catch (error) {
-          console.error('Error signing in:', error);
-        } finally {
-          setIsSigningIn(false);
-        }
-      }
-    };
-
-    signInUser();
-  }, [isSDKLoaded, context?.user, isSigningIn]);
-
   useEffect(() => {
     const checkUserStatus = async () => {
       if (context?.user) {
         try {
           // Registrar al usuario en la base de datos sin restricciones
-          await fetch(`/api/user/status?userId=${context.user.fid}`);
+          await fetch(`/api/user/status?userId=${context.user.fid}&username=${context.user.username}`);
         } catch (error) {
           console.error('Error registering user:', error);
         }

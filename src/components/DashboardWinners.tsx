@@ -200,7 +200,7 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
                       body: JSON.stringify({
                         userId,
                         seasonId: selectedSeason,
-                        shareType: 'topLeaderboard'
+                        shareType: 'topBoard'
                       }),
                     });
 
@@ -211,15 +211,14 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
                       throw new Error(shareData.error || 'Failed to register share');
                     }
 
-                    const top3 = topPlayers.slice(0, 3);
                     const timestamp = Date.now();
-                    const shareId = `${selectedSeason}-${timestamp}`;
-                    
+                    const shareId = encodeURIComponent(`${selectedSeason}-${timestamp}`);
                     const text = `Check out the top players in /adivinadrone ${selectedSeason}! 🏆\nCan you make it to the leaderboard? 🚀`;
+                    const shareUrl = `https://adivinadrone.c13studio.mx/share-top/${shareId}`;
                     
                     await sdk.actions.composeCast({
                       text: text,
-                      embeds: [`https://adivinadrone.c13studio.mx/share-top/${encodeURIComponent(shareId)}`]
+                      embeds: [shareUrl]
                     });
                   } catch (error) {
                     console.error('Error sharing top players:', error);

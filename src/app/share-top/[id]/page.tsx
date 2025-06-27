@@ -17,7 +17,7 @@ export async function generateMetadata({
     version: "next",
     imageUrl: imageUrl.toString(),
     button: {
-      title: "Can you make it to the leaderboard?",
+      title: "Can you beat them?",
       action: {
         type: "launch_frame",
         name: "Launch adivinaDrone",

@@ -321,14 +321,14 @@ export default function AdivinaDrone() {
                   Share Mini App for a chance to win 10M $DRONE
                 </Button>
 
-{/*             <Button
+           <Button
                   onClick={handleStartGame}
                   className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
                 >
                   {hasExtraLife && !isExtraLifeUsed ? 'Play Your Extra Life' : 
                    canBuyExtraLife ? 'Buy Extra Life' : 
                    'Play Now'}
-              </Button> */}
+              </Button>
               </div>
               <hr></hr>
               <hr></hr>

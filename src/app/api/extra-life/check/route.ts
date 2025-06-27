@@ -28,7 +28,7 @@ export async function GET(request: Request) {
         SELECT id FROM users WHERE farcaster_id = ${userId}
       )
       AND el.season_id = (
-        SELECT id FROM seasons WHERE name = 'Season 07'
+        SELECT id FROM seasons WHERE name = 'Season 08'
       )
       AND el.created_at > (
         SELECT last_reset + TIME '18:00' FROM current_reset

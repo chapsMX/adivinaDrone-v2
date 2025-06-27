@@ -17,6 +17,7 @@ interface TopPlayer {
   username: string;
   score: number;
   pfp_url: string | null;
+  fid: string;
 }
 
 interface Season {
@@ -180,7 +181,60 @@ export default function Dashboard({ isOpen, onClose, userId, username, context }
           </div>
 
           <div className="p-2 border border-[#ff8800] rounded-xl bg-black/20">
-            <h3 className={`text-lg font-bold text-white mb-2 ${protoMono.className}`}>Top Players</h3>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className={`text-lg font-bold text-white ${protoMono.className}`}>Top 25 Players</h3>
+              <button
+                onClick={async () => {
+                  try {
+                    if (!Array.isArray(topPlayers) || topPlayers.length < 3) {
+                      throw new Error('Not enough players to share');
+                    }
+
+                    // Primero registrar el share en la base de datos
+                    console.log('Registrando share desde Dashboard:', { userId, seasonId: selectedSeason });
+                    const shareResponse = await fetch("/api/game/share", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        userId,
+                        seasonId: selectedSeason,
+                        shareType: 'topLeaderboard'
+                      }),
+                    });
+
+                    const shareData = await shareResponse.json();
+                    console.log('Respuesta del share:', shareData);
+
+                    if (!shareResponse.ok) {
+                      throw new Error(shareData.error || 'Failed to register share');
+                    }
+
+                    const top3 = topPlayers.slice(0, 3);
+                    const timestamp = Date.now();
+                    const shareId = `${selectedSeason}-${timestamp}`;
+                    
+                    const text = `Check out the top players in /adivinadrone ${selectedSeason}! 🏆\nCan you make it to the leaderboard? 🚀`;
+                    
+                    await sdk.actions.composeCast({
+                      text: text,
+                      embeds: [`https://adivinadrone.c13studio.mx/share-top/${encodeURIComponent(shareId)}`]
+                    });
+                  } catch (error) {
+                    console.error('Error sharing top players:', error);
+                    if (error instanceof Error) {
+                      alert('Error sharing: ' + error.message);
+                    } else {
+                      alert('Error sharing. Please try again.');
+                    }
+                  }
+                }}
+                className={`text-sm text-[#ff8800] hover:text-white transition-colors ${protoMono.className}`}
+              >
+                Share
+              </button>
+            </div>
             <div className="space-y-0 h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#ff8800] scrollbar-track-black/20">
               {Array.isArray(topPlayers) && topPlayers.map((player, index) => (
                 <div 

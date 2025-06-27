@@ -11,13 +11,13 @@ export async function generateMetadata({
   const { id } = await params;
 
   /* const imageUrl = new URL(`${appUrl}/api/og/${id}`); */
-  const imageUrl = new URL(`${appUrl}/api/share-leaderboard/${id}`);
+  const imageUrl = new URL(`${appUrl}/api/share-top/${id}`);
 
   const frame = {
     version: "next",
     imageUrl: imageUrl.toString(),
     button: {
-      title: "Can you beat me?",
+      title: "Can you make it to the leaderboard?",
       action: {
         type: "launch_frame",
         name: "Launch adivinaDrone",
@@ -41,6 +41,6 @@ export async function generateMetadata({
   };
 }
 
-export default async function ShareLeaderboard() {
+export default async function StreakFlex() {
   return <App />;
 }

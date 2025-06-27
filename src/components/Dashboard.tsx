@@ -134,8 +134,11 @@ export default function AdivinaDrone() {
       if (response.status === 403) {
         setDailyLimitMessage(data.error);
         setHasPerfectScore(data.perfectScore || false);
-        // Solo permitimos comprar vida extra si no tiene score perfecto y no ha usado una vida extra hoy
-        setCanBuyExtraLife(!data.perfectScore && !hasExtraLife);
+        // Solo permitimos comprar vida extra si:
+        // 1. No tiene score perfecto
+        // 2. No tiene una vida extra activa
+        // 3. No ha usado ya todas sus vidas (incluyendo la extra)
+        setCanBuyExtraLife(!data.perfectScore && !hasExtraLife && !data.extraLifeUsed);
         setIsPopupOpen(true);
         return;
       }
@@ -318,14 +321,14 @@ export default function AdivinaDrone() {
                   Share Mini App for a chance to win 10M $DRONE
                 </Button>
 
-            <Button
+{/*             <Button
                   onClick={handleStartGame}
                   className="w-full bg-[#3d3849] border-2 border-[#ff8800] hover:bg-[#4d4859] text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:opacity-50"
                 >
                   {hasExtraLife && !isExtraLifeUsed ? 'Play Your Extra Life' : 
                    canBuyExtraLife ? 'Buy Extra Life' : 
                    'Play Now'}
-              </Button>
+              </Button> */}
               </div>
               <hr></hr>
               <hr></hr>
@@ -353,7 +356,7 @@ export default function AdivinaDrone() {
                       * Faster answers = more points<br />
                       * Leaderboard updated daily<br />
                       * 3 winners per season<br />
-                      * Up to 150 USDC in prizes<br />
+                      * Up to 350 USDC in prizes<br />
                       * Updated daily at 18.00 CST<br />
                       * Add the Mini App and turn notis on<br />
                       <br />

@@ -59,14 +59,18 @@ export async function GET(request: Request) {
         return NextResponse.json({
           error: "Congratulations! You've completed today's challenge perfectly.<br />Come back tomorrow for new images!",
           dailyLimit: true,
-          perfectScore: true
+          perfectScore: true,
+          extraLifeUsed: totalResponses >= 4
         }, { status: 403 });
       }
       
       return NextResponse.json({
-        error: "Daily limit reached.<br />You can buy an extra life!",
+        error: totalResponses >= 4 ? 
+          "You've used all your attempts today, including extra life.<br />Come back tomorrow!" :
+          "Daily limit reached.<br />You can buy an extra life!",
         dailyLimit: true,
-        perfectScore: false
+        perfectScore: false,
+        extraLifeUsed: totalResponses >= 4
       }, { status: 403 });
     }
 

@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
-    const seasonId = searchParams.get('seasonId') || 'Season 08';
+    const seasonId = searchParams.get('seasonId') || 'Season 07';
 
     if (!userId) {
       return NextResponse.json(

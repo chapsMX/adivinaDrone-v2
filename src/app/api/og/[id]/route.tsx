@@ -95,7 +95,7 @@ export async function GET(
     const fontPath = path.join(process.cwd(), 'src/styles/fonts/ProtoMono-Regular.otf');
     const fontData = fs.readFileSync(fontPath);
     const profileImage = await loadImage(pfpUrl);
-    const logoImage = await loadImage(`${baseUrl}/splashC.png`);
+    const logoImage = await loadImage(`${baseUrl}/splash_08.png`);
     const backgroundMap = await loadImage(`${baseUrl}/mapaTrans.png`);
 
     return new ImageResponse(

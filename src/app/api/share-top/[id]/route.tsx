@@ -148,7 +148,7 @@ export async function GET(
     const fontPath = path.join(process.cwd(), 'public/fonts/ProtoMono-Regular.otf');
     const fontData = fs.readFileSync(fontPath);
     const backgroundMap = await loadImage('https://adivinadrone.c13studio.mx/mapaTrans.png');
-    const logoImage = await loadImage('https://adivinadrone.c13studio.mx/splashC.png');
+    const logoImage = await loadImage('https://adivinadrone.c13studio.mx/splash_08.png');
 
     // No need to pre-load avatars, we'll use them directly in the img src
     console.log('Player data for image generation:', playerData);

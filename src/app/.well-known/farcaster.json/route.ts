@@ -12,7 +12,7 @@ export async function GET() {
         name: 'adivinaDrone',
         iconUrl: `${appUrl}/favicon.png`,
         homeUrl: appUrl,
-        imageUrl: `${appUrl}/castLoader.png`,
+        imageUrl: `${appUrl}/loader.gif`,
         buttonTitle: '🎮 📸 Play adivinaDrone 📸 🎮',
         splashImageUrl: `${appUrl}/splash_200.png`,
         splashBackgroundColor: '#2d283a',

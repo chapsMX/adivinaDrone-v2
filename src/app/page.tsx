@@ -5,7 +5,7 @@ const appUrl = process.env.NEXT_PUBLIC_URL;
 
 const frame = {
   version: 'next',
-  imageUrl: `${appUrl}/castLoader.png`,
+  imageUrl: `${appUrl}/loader.gif`,
   button: {
     title: '🎮 📸 Play adivinaDrone 📸 🎮',
     action: {
